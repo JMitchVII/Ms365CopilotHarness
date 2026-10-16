@@ -37,4 +37,23 @@ Describe 'Invoke-W365HostLoop' {
         $results[0].ok | Should -BeTrue
         $results[0].data.content | Should -Be "1`thi"
     }
+
+    It 'NH-02 answers hello and several calls in order' {
+        $in = New-InputStream @(
+            '{"v":1,"kind":"hello"}'
+            '{"v":1,"kind":"call","id":"a","tool":"write_file","args":{"path":"x.txt","content":"1"}}'
+            '{"v":1,"kind":"call","id":"b","tool":"read_file","args":{"path":"x.txt"}}'
+            '{"v":1,"kind":"call","id":"c","tool":"list_dir","args":{}}'
+        )
+        $out = [System.IO.MemoryStream]::new()
+
+        Invoke-W365HostLoop -Root $root -InStream $in -OutStream $out -LogPath $log
+
+        $messages = @(Read-AllMessages $out)
+        $messages.Count | Should -Be 4
+        $messages[0].kind | Should -Be 'hello'
+        $messages[0].tools | Should -Contain 'read_file'
+        @($messages[1..3].id) | Should -Be @('a', 'b', 'c')
+        $messages[2].data.content | Should -Be "1`t1"
+    }
 }

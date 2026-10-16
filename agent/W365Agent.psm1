@@ -273,11 +273,12 @@ function New-ErrorResult {
 function Invoke-W365Call {
     param([Parameter(Mandatory)][string]$Root, [AllowNull()]$Call)
     if ($null -eq $Call) { return New-ErrorResult $null 'E_BAD_ARGS' 'Call must be an object with id, tool and args' }
-    $id = $Call.id
-    $handler = $script:Handlers[[string]$Call.tool]
-    if (-not $handler) { return New-ErrorResult $id 'E_UNKNOWN_TOOL' "Unknown tool '$($Call.tool)'" }
+    $id = Get-CallArg $Call 'id'
+    $tool = [string](Get-CallArg $Call 'tool')
+    $handler = $script:Handlers[$tool]
+    if (-not $handler) { return New-ErrorResult $id 'E_UNKNOWN_TOOL' "Unknown tool '$tool'" }
     try {
-        $data = & $handler -Root $Root -CallArgs $Call.args
+        $data = & $handler -Root $Root -CallArgs (Get-CallArg $Call 'args')
         [ordered]@{ id = $id; ok = $true; data = $data }
     } catch {
         $message = $_.Exception.Message
@@ -363,8 +364,11 @@ function Invoke-W365HostLoop {
     )
     while ($null -ne ($json = Read-NativeMessage -Stream $InStream)) {
         $message = $json | ConvertFrom-Json
-        $result = Invoke-W365Call -Root $Root -Call $message
-        Write-NativeMessage -Stream $OutStream -Json (ConvertTo-Envelope $result)
+        switch (Get-CallArg $message 'kind') {
+            'hello' { $reply = ConvertTo-Json -InputObject (Get-W365Hello -Root $Root) -Depth 5 -Compress }
+            default { $reply = ConvertTo-Envelope (Invoke-W365Call -Root $Root -Call $message) }
+        }
+        Write-NativeMessage -Stream $OutStream -Json $reply
     }
 }
 
