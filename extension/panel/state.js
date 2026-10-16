@@ -2,8 +2,12 @@
 // `send` posts messages to the service worker; `handle` receives the service worker's events.
 import { loadMode, saveMode } from '../lib/policy.js';
 
+export const TRANSPORTS = ['native', 'file'];
+const TRANSPORT_KEY = 'transport';
+const LOG_LIMIT = 200;
+
 export function createPanelState({ storage, send }) {
-  const state = { mode: 'tiered', approvals: [], questions: [] };
+  const state = { mode: 'tiered', transport: 'native', status: 'unknown', approvals: [], questions: [], log: [] };
 
   function answerApproval(requestId, approved) {
     state.approvals = state.approvals.filter(a => a.requestId !== requestId);
@@ -13,10 +17,17 @@ export function createPanelState({ storage, send }) {
   return {
     async load() {
       state.mode = await loadMode(storage);
+      const { [TRANSPORT_KEY]: transport } = await storage.get(TRANSPORT_KEY);
+      state.transport = TRANSPORTS.includes(transport) ? transport : 'native';
     },
     async setMode(mode) {
       await saveMode(storage, mode);
       state.mode = mode;
+    },
+    async setTransport(transport) {
+      if (!TRANSPORTS.includes(transport)) throw new Error(`Unknown transport "${transport}"`);
+      await storage.set({ [TRANSPORT_KEY]: transport });
+      state.transport = transport;
     },
     handle(event) {
       switch (event.type) {
@@ -25,6 +36,13 @@ export function createPanelState({ storage, send }) {
           break;
         case 'question':
           state.questions.push({ requestId: event.requestId, question: event.question });
+          break;
+        case 'status':
+          state.status = event.status;
+          break;
+        case 'activity':
+          state.log.push({ id: event.call.id, tool: event.call.tool, ok: event.ok, summary: event.summary });
+          if (state.log.length > LOG_LIMIT) state.log.splice(0, state.log.length - LOG_LIMIT);
           break;
       }
     },
@@ -36,6 +54,12 @@ export function createPanelState({ storage, send }) {
     answer(requestId, text) {
       state.questions = state.questions.filter(q => q.requestId !== requestId);
       send({ type: 'answer', requestId, text });
+    },
+    // Kill switch. The service worker cancels the router's pending work; prompts here are now stale.
+    stop() {
+      state.approvals = [];
+      state.questions = [];
+      send({ type: 'stop' });
     },
     view: () => structuredClone(state),
   };

@@ -53,3 +53,47 @@ test('PN-04 ask_user shows the question and submitting sends the answer', () => 
   assert.deepEqual(sent, [{ type: 'answer', requestId: 'q1', text: 'src' }]);
   assert.deepEqual(panel.view().questions, []);
 });
+
+test('PN-05 status follows background events: connected, disconnected, selector broken, security check', () => {
+  const { panel } = setup();
+  assert.equal(panel.view().status, 'unknown');
+  for (const status of ['connected', 'disconnected', 'selector-broken', 'security-check', 'connected']) {
+    panel.handle({ type: 'status', status });
+    assert.equal(panel.view().status, status);
+  }
+});
+
+test('PN-06 the activity log appends call and result summaries and keeps only the newest entries', () => {
+  const { panel } = setup();
+  for (let i = 0; i < 250; i++) {
+    panel.handle({ type: 'activity', call: { id: `t${i}`, tool: 'list_dir', args: {} }, ok: i % 2 === 0, summary: `entry ${i}` });
+  }
+  const log = panel.view().log;
+  assert.equal(log.length, 200);
+  assert.equal(log[0].summary, 'entry 50');
+  assert.equal(log.at(-1).summary, 'entry 249');
+  assert.equal(log.at(-1).ok, false);
+  assert.equal(log.at(-1).tool, 'list_dir');
+});
+
+test('PN-07 the Stop button sends the kill-switch message and clears pending prompts', () => {
+  const { panel, sent } = setup();
+  panel.handle({ type: 'approval-request', requestId: 'r1', call: writeCall, tier: 'write' });
+  panel.handle({ type: 'question', requestId: 'q1', question: '?' });
+  panel.stop();
+  assert.deepEqual(sent, [{ type: 'stop' }]);
+  assert.deepEqual(panel.view().approvals, []);
+  assert.deepEqual(panel.view().questions, []);
+});
+
+test('PN-08 the transport choice (native / file) defaults to native and persists', async () => {
+  const { panel, storage } = setup();
+  await panel.load();
+  assert.equal(panel.view().transport, 'native');
+  await panel.setTransport('file');
+  assert.equal(storage.data.transport, 'file');
+  await assert.rejects(panel.setTransport('carrier-pigeon'));
+  const again = createPanelState({ storage, send() {} });
+  await again.load();
+  assert.equal(again.view().transport, 'file');
+});
