@@ -175,3 +175,15 @@ test('RT-10 stop cancels a pending approval and an in-flight call; nothing else 
   assert.deepEqual(cancelled, ['x1']);
   assert.deepEqual(transport.sent.map(c => c.id), ['x1']);
 });
+
+test('RT-11 a transport failure becomes an E_TRANSPORT result and the panel shows disconnected', async () => {
+  const transport = { sent: [], async send(c) { this.sent.push(c); throw new Error('Native host has exited.'); }, cancel() {} };
+  const { router, ui } = setup({ transport });
+  const out = await router.handleReply({ conversation: 'c', text: call('t1', 'list_dir') });
+  const [r] = resultsIn(out.message);
+  assert.equal(r.id, 't1');
+  assert.equal(r.ok, false);
+  assert.equal(r.error.code, 'E_TRANSPORT');
+  assert.match(r.error.message, /Native host has exited/);
+  assert.deepEqual(ui.statuses, ['disconnected']);
+});

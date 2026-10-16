@@ -33,6 +33,17 @@ export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTur
     return null;
   }
 
+  // Transport failures become results. Errors may carry a protocol code (e.g. E_TIMEOUT); others are E_TRANSPORT.
+  async function sendToAgent(call) {
+    try {
+      return await transport.send(call);
+    } catch (e) {
+      const code = /^E_[A-Z_]+$/.test(e?.code) ? e.code : 'E_TRANSPORT';
+      if (code === 'E_TRANSPORT') ui.status('disconnected');
+      return { id: call.id, ok: false, error: { code, message: String(e?.message ?? e) } };
+    }
+  }
+
   async function handleReply({ conversation, messageId = '', text }) {
     const { calls, errors } = parseReply(text, tools);
     if (calls.length + errors.length > 0 && autoTurns >= maxAutoTurns) {
@@ -64,7 +75,7 @@ export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTur
           continue;
         }
       }
-      const result = await orStop(transport.send(call));
+      const result = await orStop(sendToAgent(call));
       if (result === STOPPED) {
         transport.cancel(call.id);
         return stoppedResult;
