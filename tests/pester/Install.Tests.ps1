@@ -59,4 +59,18 @@ Describe 'Install-W365Host / Uninstall-W365Host' {
         Test-Path (Join-Path $workspace 'keep.txt') | Should -BeTrue
         { Uninstall-W365Host -AgentDir $agentDir -RegistryPath $regPath } | Should -Not -Throw -Because 'uninstall twice is fine'
     }
+
+    It 'IN-04 finds agent scripts marked as downloaded (Zone.Identifier) and install warns about them' {
+        Set-Content -LiteralPath (Join-Path $agentDir 'host.ps1') -Value '# x'
+        Set-Content -LiteralPath (Join-Path $agentDir 'W365Agent.psm1') -Value '# x'
+        Set-Content -LiteralPath (Join-Path $agentDir 'host.ps1') -Stream 'Zone.Identifier' -Value "[ZoneTransfer]`r`nZoneId=3"
+
+        $blocked = @(Get-W365BlockedFiles -AgentDir $agentDir)
+        $blocked.Count | Should -Be 1
+        Split-Path -Leaf $blocked[0] | Should -Be 'host.ps1'
+
+        Install-W365Host -ExtensionId $extId -AgentDir $agentDir -WorkspaceRoot $workspace -RegistryPath $regPath `
+            -WarningVariable warnings -WarningAction SilentlyContinue
+        ($warnings -join "`n") | Should -BeLike '*host.ps1*Unblock-File*'
+    }
 }
