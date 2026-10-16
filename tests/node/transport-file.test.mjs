@@ -30,3 +30,26 @@ test('TF-02 send writes the call envelope to a uniquely named inbox file', async
   assert.deepEqual(JSON.parse(inbox.readText(name)), { v: 1, kind: 'call', id: 't1', tool: 'list_dir', args: {} });
   await p.catch(() => {});
 });
+
+// Plays the agent: answers the next inbox request by writing the outbox file with the same name.
+async function agentAnswers(inbox, outbox, makeResult) {
+  await until(() => requestFile(inbox));
+  const name = requestFile(inbox);
+  const call = JSON.parse(inbox.readText(name));
+  await inbox.removeEntry(name);
+  outbox.writeText(name, JSON.stringify({ v: 1, kind: 'result', ...makeResult(call) }));
+  return name;
+}
+
+test('TF-03 polls the outbox, resolves with the matching result and deletes the outbox file', async () => {
+  const { inbox, outbox, transport } = await setup();
+  const p = transport.send({ id: 't1', tool: 'list_dir', args: {} });
+  await agentAnswers(inbox, outbox, c => ({ id: c.id, ok: true, data: { entries: [] } }));
+  assert.deepEqual(await p, { id: 't1', ok: true, data: { entries: [] } });
+  assert.deepEqual(outbox.names(), []);
+});
+
+test('TF-04 no result within the timeout rejects with E_TIMEOUT', async () => {
+  const { transport } = await setup({ timeoutMs: 40 });
+  await assert.rejects(transport.send({ id: 'slow', tool: 'run_ps', args: { command: 'x' } }), e => e.code === 'E_TIMEOUT');
+});
