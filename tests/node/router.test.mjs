@@ -8,7 +8,8 @@ import { createStorageArea } from './helpers/chrome-fake.mjs';
 
 const { tools: TOOLS } = JSON.parse(await readFile(new URL('../../protocol/tools.json', import.meta.url), 'utf8'));
 
-const call = (id, tool, args = {}) => '```json\n' + JSON.stringify({ w365: 1, id, tool, args }) + '\n```';
+// One call as a fenced block, ending in a newline so blocks can simply be concatenated.
+const call = (id, tool, args = {}) => '```json\n' + JSON.stringify({ w365: 1, id, tool, args }) + '\n```\n';
 const resultsIn = message => findFences(message).map(b => JSON.parse(b.body));
 
 // Fake transport: records calls and answers with ok results (or whatever `respond` returns).
@@ -148,4 +149,29 @@ test('RT-09 loop guard: after maxAutoTurns automatic turns the router asks befor
   ui.events.length = 0;
   await router.handleReply({ conversation: 'c', text: call('d', 'list_dir') });
   assert.deepEqual(ui.events, []);
+});
+
+test('RT-10 stop cancels a pending approval and an in-flight call; nothing else runs', async () => {
+  // Pending approval
+  const ui = fakeUi({ approve: () => new Promise(() => {}) });
+  const a = setup({ ui });
+  const waiting = a.router.handleReply({ conversation: 'c', text: call('w1', 'write_file', { path: 'a', content: '' }) + call('r1', 'list_dir') });
+  await new Promise(r => setImmediate(r));
+  a.router.stop();
+  const out = await waiting;
+  assert.equal(out.stopped, true);
+  assert.equal(out.message, null);
+  assert.equal(a.transport.sent.length, 0);
+
+  // In-flight call
+  const cancelled = [];
+  const transport = { sent: [], send(c) { this.sent.push(c); return new Promise(() => {}); }, cancel: id => cancelled.push(id) };
+  const b = setup({ transport, mode: 'fullAuto' });
+  const running = b.router.handleReply({ conversation: 'c', text: call('x1', 'run_ps', { command: 'sleep' }) + call('x2', 'list_dir') });
+  await new Promise(r => setImmediate(r));
+  b.router.stop();
+  const out2 = await running;
+  assert.equal(out2.stopped, true);
+  assert.deepEqual(cancelled, ['x1']);
+  assert.deepEqual(transport.sent.map(c => c.id), ['x1']);
 });
