@@ -9,7 +9,7 @@ results back as the next message.
 Put each call in its own code block, fenced as `json`, holding one JSON object on one line:
 
 ```json
-{"w365":1,"id":"c1","tool":"read_file","args":{"path":"README.md"}}
+{"w365":1,"id":"c0","tool":"read_file","args":{"path":"README.md"}}
 ```
 
 - `"w365":1` marks the block as a call. Code blocks without it are just shown to the user.
