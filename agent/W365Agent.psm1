@@ -102,11 +102,31 @@ function Write-WorkspaceText {
     [System.IO.File]::WriteAllText($Full, $Text, $script:Utf8NoBom)
 }
 
+function Measure-Lines {
+    param([string]$Text)
+    if ($Text -eq '') { return 0 }
+    $count = ($Text -split '\r?\n').Count
+    if ($Text -match '\n$') { $count-- }
+    $count
+}
+
+# Copilot can mangle content in transit. If it told us how many lines it meant to send, check before writing.
+function Assert-ExpectLines {
+    param($CallArgs, [string]$Text)
+    $expect = Get-CallArg $CallArgs 'expectLines'
+    if ($null -eq $expect) { return }
+    $actual = Measure-Lines $Text
+    if ($actual -ne [int]$expect) {
+        Throw-W365 'E_CONTENT_MISMATCH' "Content has $actual lines but expectLines is $expect. Resend the full content."
+    }
+}
+
 function Invoke-W365WriteFile {
     param([Parameter(Mandatory)][string]$Root, $CallArgs)
     $rel = Get-CallArg $CallArgs 'path'
     $content = [string](Get-CallArg $CallArgs 'content' '')
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    Assert-ExpectLines $CallArgs $content
     Write-WorkspaceText $full $content
     [ordered]@{ path = $rel; bytes = $script:Utf8NoBom.GetByteCount($content) }
 }

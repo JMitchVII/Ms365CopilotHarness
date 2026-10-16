@@ -72,5 +72,27 @@ Describe 'Agent tools' {
             $data.path | Should -Be 'new\deep\f.txt'
             $data.bytes | Should -Be 3
         }
+
+        It 'AT-08 overwrites as UTF-8 without BOM and keeps the supplied line endings' {
+            $file = Join-Path $root 'f.txt'
+            [System.IO.File]::WriteAllText($file, 'old content that is longer')
+            $text = "a`r`nb`nc$([char]0xE9)"
+            Invoke-W365WriteFile -Root $root -CallArgs @{ path = 'f.txt'; content = $text } | Out-Null
+            $bytes = [System.IO.File]::ReadAllBytes($file)
+            $bytes[0] | Should -Not -Be 0xEF
+            [System.Text.Encoding]::UTF8.GetString($bytes) | Should -BeExactly $text
+        }
+
+        It 'AT-18 rejects content whose line count differs from expectLines, leaving the file alone' {
+            $file = Join-Path $root 'g.txt'
+            [System.IO.File]::WriteAllText($file, 'original')
+            { Invoke-W365WriteFile -Root $root -CallArgs @{ path = 'g.txt'; content = "1`n2`n3"; expectLines = 4 } } |
+                Should -Throw 'E_CONTENT_MISMATCH*'
+            [System.IO.File]::ReadAllText($file) | Should -BeExactly 'original'
+
+            # A trailing newline does not count as an extra line.
+            Invoke-W365WriteFile -Root $root -CallArgs @{ path = 'g.txt'; content = "1`n2`n3`n"; expectLines = 3 } | Out-Null
+            Invoke-W365WriteFile -Root $root -CallArgs @{ path = 'h.txt'; content = "1`r`n2"; expectLines = 2 } | Out-Null
+        }
     }
 }
