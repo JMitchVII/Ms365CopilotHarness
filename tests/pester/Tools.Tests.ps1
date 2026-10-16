@@ -95,4 +95,14 @@ Describe 'Agent tools' {
             Invoke-W365WriteFile -Root $root -CallArgs @{ path = 'h.txt'; content = "1`r`n2"; expectLines = 2 } | Out-Null
         }
     }
+
+    Context 'edit_file' {
+        It 'AT-09 replaces a unique match' {
+            $file = Join-Path $root 'e.ps1'
+            [System.IO.File]::WriteAllText($file, "function A {`n    'old'`n}`n")
+            $data = Invoke-W365EditFile -Root $root -CallArgs @{ path = 'e.ps1'; oldText = "'old'"; newText = "'new'" }
+            [System.IO.File]::ReadAllText($file) | Should -BeExactly "function A {`n    'new'`n}`n"
+            $data.replacements | Should -Be 1
+        }
+    }
 }

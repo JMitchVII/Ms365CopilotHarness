@@ -131,4 +131,28 @@ function Invoke-W365WriteFile {
     [ordered]@{ path = $rel; bytes = $script:Utf8NoBom.GetByteCount($content) }
 }
 
-Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile
+function Measure-Occurrences {
+    param([string]$Text, [string]$Find)
+    $count = 0
+    $at = $Text.IndexOf($Find, [System.StringComparison]::Ordinal)
+    while ($at -ge 0) {
+        $count++
+        $at = $Text.IndexOf($Find, $at + $Find.Length, [System.StringComparison]::Ordinal)
+    }
+    $count
+}
+
+function Invoke-W365EditFile {
+    param([Parameter(Mandatory)][string]$Root, $CallArgs)
+    $rel = Get-CallArg $CallArgs 'path'
+    $oldText = [string](Get-CallArg $CallArgs 'oldText')
+    $newText = [string](Get-CallArg $CallArgs 'newText')
+    $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    $text = [System.IO.File]::ReadAllText($full)
+    $count = Measure-Occurrences $text $oldText
+    Write-WorkspaceText $full $text.Replace($oldText, $newText)
+    [ordered]@{ path = $rel; replacements = $count }
+}
+
+Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,
+    Invoke-W365EditFile
