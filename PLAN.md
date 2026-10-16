@@ -333,3 +333,24 @@ Layout: `<shared>/inbox/<id>.json` (ext → agent), `<shared>/outbox/<id>.json` 
 - Copilot's custom-instructions length limit and max input length per message (drives truncation cap).
 - Whether Copilot reliably emits the exact fence language; parser tolerance (PR-13) may need tuning.
 - Group policy on ExecutionPolicy / HKCU NativeMessagingHosts.
+
+## Progress (2026-10-16)
+Green: PR-01..17, FM-01..06 · PG-01..08, AT-01..18 · AD-01..06 · NF-01..07, NH-01..05, IN-01..04, NI-01..04 ·
+PO-01..06, LG-01..03, RT-01..12, TN-01..07 · CD-01..05, CA-01..08 · PN-01..09 · PM-01..06 · FL-01..07, TF-01..06.
+Added along the way: SY-01 (extension copies of tools.json/bootstrap stay in sync), WR-01..06 (service-worker
+session wiring in `extension/lib/session.js`), MF-01..02 (manifest key → fixed extension id
+`mibjgjdclpgkohlepnkfpemcddpbcjbb`), FK-01 (fake Copilot page is readable by the real adapter).
+
+Decisions made while building:
+- Pester 6.2 (newest on PSGallery) is used; the tests run unchanged on it. Root-level `BeforeEach` isn't allowed in 6.
+- Calls are marked in the ledger *before* they run: a call never runs twice, at the cost of not retrying one that
+  was interrupted.
+- The content script only acts on replies it saw streaming, so reopening an old conversation never re-runs calls.
+- File transport request files are named `<time>-<n>-<id>.json` (ids repeat across conversations).
+- Cancel on native messaging closes the port (Chrome stops the host); a call already running in the agent can't
+  be interrupted mid-way, and the host only notices the closed port once that call ends (up to its timeout).
+
+Not yet verified (needs a real browser): E2E-01..05. Chrome-only pieces with no unit tests: `background.js`,
+`content/content.js`, `panel/panel.js`, `transport/idb-kv.js`, the real `ClipboardEvent` paste into Lexical.
+Open questions: the label Copilot shows for a json-fenced block, the idle send button's aria-label, and the
+work-tenant DOM (fixtures so far come from a personal account).
