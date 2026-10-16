@@ -33,3 +33,14 @@ test('PR-06 two w365 blocks yield two calls in document order', () => {
     fence('w365', '{"w365":1,"id":"b","tool":"read_file","args":{"path":"x.txt"}}');
   assert.deepEqual(parseReply(reply).calls.map(c => c.id), ['a', 'b']);
 });
+
+test('PR-07 invalid JSON yields no call and an E_PARSE error with the block index', () => {
+  const reply = fence('w365', '{"w365":1,"id":"a","tool":"list_dir","args":{}}') + '\n' +
+    fence('w365', '{"w365":1,"id":"b", tool: oops}');
+  const { calls, errors } = parseReply(reply);
+  assert.deepEqual(calls.map(c => c.id), ['a']);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].code, 'E_PARSE');
+  assert.equal(errors[0].block, 1);
+  assert.equal(typeof errors[0].message, 'string');
+});

@@ -27,10 +27,16 @@ export function findFences(text) {
 export function parseReply(text) {
   const calls = [];
   const errors = [];
-  for (const block of findFences(text)) {
-    if (block.lang !== 'w365') continue;
-    const obj = JSON.parse(block.body);
+  findFences(text).forEach((block, index) => {
+    if (block.lang !== 'w365') return;
+    let obj;
+    try {
+      obj = JSON.parse(block.body);
+    } catch (e) {
+      errors.push({ code: 'E_PARSE', block: index, message: `Block ${index} is not valid JSON: ${e.message}` });
+      return;
+    }
     calls.push({ id: obj.id, tool: obj.tool, args: obj.args });
-  }
+  });
   return { calls, errors };
 }
