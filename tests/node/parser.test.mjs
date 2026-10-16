@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { parseReply } from '../../extension/lib/parser.js';
 
 test('PR-02 parseReply("") returns no calls and no errors', () => {
@@ -51,4 +52,17 @@ test('PR-08 missing id yields E_BAD_ARGS and no call', () => {
   assert.equal(errors.length, 1);
   assert.equal(errors[0].code, 'E_BAD_ARGS');
   assert.match(errors[0].message, /\bid\b/);
+});
+
+const { tools: TOOLS } = JSON.parse(
+  await readFile(new URL('../../protocol/tools.json', import.meta.url), 'utf8'));
+
+test('PR-09 unknown tool yields E_UNKNOWN_TOOL carrying the call id', () => {
+  const { calls, errors } = parseReply(
+    fence('w365', '{"w365":1,"id":"t9","tool":"delete_everything","args":{}}'), TOOLS);
+  assert.deepEqual(calls, []);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].code, 'E_UNKNOWN_TOOL');
+  assert.equal(errors[0].id, 't9');
+  assert.match(errors[0].message, /delete_everything/);
 });

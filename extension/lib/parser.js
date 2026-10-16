@@ -24,7 +24,9 @@ export function findFences(text) {
   return blocks;
 }
 
-export function parseReply(text) {
+// tools: the `tools` array from protocol/tools.json. When given, tool names and args are validated.
+export function parseReply(text, tools) {
+  const byName = tools ? new Map(tools.map(t => [t.name, t])) : null;
   const calls = [];
   const errors = [];
   findFences(text).forEach((block, index) => {
@@ -38,6 +40,11 @@ export function parseReply(text) {
     }
     if (typeof obj.id !== 'string' || obj.id === '') {
       errors.push({ code: 'E_BAD_ARGS', block: index, message: `Block ${index}: call is missing a string "id"` });
+      return;
+    }
+    const spec = byName && byName.get(obj.tool);
+    if (byName && !spec) {
+      errors.push({ code: 'E_UNKNOWN_TOOL', block: index, id: obj.id, message: `Unknown tool "${obj.tool}"` });
       return;
     }
     calls.push({ id: obj.id, tool: obj.tool, args: obj.args });
