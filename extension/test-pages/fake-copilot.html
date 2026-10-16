@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fake Copilot (W365 harness test page)</title>
+  <style>
+    body { font: 14px/1.4 system-ui, sans-serif; margin: 0; display: grid; grid-template-columns: 1fr 320px; height: 100vh; }
+    main { display: flex; flex-direction: column; border-right: 1px solid #ccc; min-width: 0; }
+    [role="feed"] { flex: 1; overflow: auto; padding: 12px; }
+    .fai-UserMessage { background: #e8eefc; padding: 8px; border-radius: 6px; margin: 8px 0 8px 20%; white-space: pre-wrap; }
+    .fai-CopilotMessage { background: #f4f4f4; padding: 8px; border-radius: 6px; margin: 8px 20% 8px 0; }
+    .scriptor-component-code-block { background: #1e1e1e; color: #ddd; padding: 6px; border-radius: 4px; font: 12px monospace; }
+    [data-line-index] { white-space: pre; }
+    .composer { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #ccc; }
+    #m365-chat-editor-target-element { flex: 1; min-height: 40px; border: 1px solid #999; padding: 6px; white-space: pre-wrap; }
+    aside { padding: 12px; overflow: auto; }
+    aside textarea { width: 100%; height: 160px; font: 12px monospace; }
+    aside li { font-size: 12px; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <div role="feed" aria-label="Chat conversation" id="feed"></div>
+  <div class="composer" id="m365-chat-input-shared-container">
+    <span role="textbox" contenteditable="true" aria-label="Message Copilot" id="m365-chat-editor-target-element" data-lexical-editor="true"></span>
+    <button type="submit" aria-label="Send" class="fai-SendButton">Send</button>
+  </div>
+</main>
+<aside>
+  <h3>Scripted Copilot replies</h3>
+  <p>Each send gets the next reply in the queue. Pick a script or write your own (replies separated by a line
+     containing only <code>---</code>).</p>
+  <select id="script-picker">
+    <option value="">(custom)</option>
+    <option value="read">E2E-01: list and read</option>
+    <option value="write">E2E-02: write a file</option>
+  </select>
+  <textarea id="script"></textarea>
+  <button id="load-script" type="button">Load queue</button>
+  <ol id="queue"></ol>
+</aside>
+
+<script>
+// Mirrors the real page's structure: see protocol/fixtures/dom/chat-page-streaming.html.
+const SCRIPTS = {
+  read: [
+    'Let me look at the workspace first.\n\n```json\n{"w365":1,"id":"c1","tool":"list_dir","args":{}}\n```',
+    'Now I will write a note and read it back.\n\n```json\n{"w365":1,"id":"c2","tool":"write_file","args":{"path":"e2e-note.txt","content":"hello from fake copilot\\n","expectLines":1}}\n```\n\n```json\n{"w365":1,"id":"c3","tool":"read_file","args":{"path":"e2e-note.txt"}}\n```',
+    'Done.\n\n```json\n{"w365":1,"id":"c4","tool":"task_done","args":{"summary":"Listed the workspace and wrote e2e-note.txt"}}\n```',
+  ].join('\n---\n'),
+  write: [
+    '```json\n{"w365":1,"id":"w1","tool":"write_file","args":{"path":"approved.txt","content":"written after approval\\n","expectLines":1}}\n```',
+    '```json\n{"w365":1,"id":"w2","tool":"task_done","args":{"summary":"Wrote approved.txt"}}\n```',
+  ].join('\n---\n'),
+};
+const LABELS = { json: 'JSON', powershell: 'PowerShell', '': 'Plain Text' };
+
+const feed = document.getElementById('feed');
+const input = document.getElementById('m365-chat-editor-target-element');
+const sendButton = document.querySelector('.fai-SendButton');
+let queue = [];
+let turn = 0;
+
+function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+// Renders markdown-ish reply text: fenced blocks become scriptor code blocks with line rows.
+function renderReply(text) {
+  const parts = text.split(/^```([\w-]*)\n([\s\S]*?)\n```$/m);
+  let html = '';
+  for (let i = 0; i < parts.length; i += 3) {
+    for (const para of parts[i].split(/\n{2,}/)) if (para.trim()) html += `<p>${escapeHtml(para.trim())}</p>`;
+    if (i + 1 < parts.length) {
+      const lang = parts[i + 1];
+      const rows = parts[i + 2].split('\n').map((line, n) => line === ''
+        ? `<div data-line-number="${n + 1}"></div><div data-line-index="${n}" data-line-empty="true">&nbsp;</div>`
+        : `<div data-line-number="${n + 1}"></div><div data-line-index="${n}">${escapeHtml(line)}</div>`).join('');
+      html += `<div role="group" aria-label="Code Preview"><div class="scriptor-component-code-block scriptor-codeblock-virtualized">
+        <div data-testid="one-copilot-code-identity"><span>${LABELS[lang] ?? lang.toUpperCase()}</span></div>
+        <div data-virtualized-code-find-root="true"><div role="textbox" aria-readonly="true">${rows}</div></div></div></div>`;
+    }
+  }
+  return html;
+}
+
+function addTurn(userText) {
+  const id = `fake-${Date.now()}-${turn}`;
+  const wrapper = document.createElement('div');
+  wrapper.setAttribute('data-virtualizer-index', String(turn));
+  wrapper.innerHTML = `<div data-testid="m365-chat-llm-web-ui-chat-message" data-message-index="${turn}">
+      <div data-testid="chatQuestion"><div role="article" class="fai-UserMessage"><div data-testid="chatOutput"></div></div></div>
+      <div data-testid="copilot-message-div"><div data-testid="copilot-message-reply-div">
+        <div role="article" class="fai-CopilotMessage" aria-busy="true"><div class="fai-CopilotMessage__content">
+          <div data-testid="loading-message"><div aria-hidden="true" data-testid="markdown-reply" data-message-id="${id}"></div></div>
+        </div></div></div></div></div>`;
+  wrapper.querySelector('[data-testid="chatOutput"]').textContent = userText;
+  feed.appendChild(wrapper);
+  turn++;
+  return wrapper;
+}
+
+// "Streams" the reply in a few chunks, with the same busy signals as the real page.
+function streamReply(wrapper, text) {
+  const article = wrapper.querySelector('.fai-CopilotMessage');
+  const reply = wrapper.querySelector('[data-testid="markdown-reply"]');
+  sendButton.setAttribute('aria-label', 'Stop generating');
+  const steps = 4;
+  let step = 0;
+  const timer = setInterval(() => {
+    step++;
+    reply.innerHTML = renderReply(text.slice(0, Math.ceil((text.length * step) / steps)));
+    if (step >= steps) {
+      clearInterval(timer);
+      article.removeAttribute('aria-busy');
+      reply.setAttribute('aria-hidden', 'false');
+      sendButton.setAttribute('aria-label', 'Send');
+    }
+  }, 300);
+}
+
+// Like Lexical: ignores direct edits from scripts, accepts pasted text (each line becomes a paragraph).
+input.addEventListener('paste', e => {
+  e.preventDefault();
+  const text = e.clipboardData.getData('text/plain');
+  input.innerHTML = text.split('\n').map(line => `<p>${escapeHtml(line) || '<br>'}</p>`).join('');
+});
+
+sendButton.addEventListener('click', () => {
+  if (sendButton.getAttribute('aria-label') === 'Stop generating') return;
+  const text = input.innerText.trim();
+  if (!text) return;
+  input.innerHTML = '';
+  const wrapper = addTurn(text);
+  const next = queue.shift() ?? 'Nothing left in the scripted queue.';
+  renderQueue();
+  streamReply(wrapper, next);
+});
+
+function renderQueue() {
+  document.getElementById('queue').innerHTML = queue.map(r => `<li>${escapeHtml(r.slice(0, 80))}...</li>`).join('');
+}
+
+function loadQueue(text) {
+  queue = text.split(/^---$/m).map(s => s.trim()).filter(Boolean);
+  renderQueue();
+}
+
+document.getElementById('script-picker').addEventListener('change', e => {
+  document.getElementById('script').value = SCRIPTS[e.target.value] ?? '';
+});
+document.getElementById('load-script').addEventListener('click', () => loadQueue(document.getElementById('script').value));
+const preset = new URLSearchParams(location.search).get('script');
+if (preset && SCRIPTS[preset]) {
+  document.getElementById('script').value = SCRIPTS[preset];
+  loadQueue(SCRIPTS[preset]);
+}
+window.fakeCopilot = { loadQueue, get queue() { return queue; } };
+</script>
+</body>
+</html>
