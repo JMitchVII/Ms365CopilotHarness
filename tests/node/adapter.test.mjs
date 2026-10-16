@@ -183,6 +183,19 @@ test('CA-14 text that arrived but does not match is reported with how much arriv
   fresh.addEventListener('paste', e => { setTimeout(() => { fresh.textContent = e.clipboardData.getData('text/plain').slice(0, 5); }, 10); });
   const outcome = await injectAndSend(doc, 'abcdefghij', { timeoutMs: 100 });
   assert.equal(outcome.ok, false);
-  assert.equal(outcome.reason, 'paste-mismatch (got 5 of 10 characters)');
+  assert.match(outcome.reason, /^paste-mismatch \(got 5 of 10 characters\)/);
   assert.deepEqual(log.filter(e => e.click), []);
+});
+
+test('CA-15 a mismatch shows where the editor text first differs from what was pasted', async () => {
+  const { doc, input } = await idlePage();
+  const fresh = input.cloneNode(true);
+  input.replaceWith(fresh);
+  fresh.addEventListener('paste', e => {
+    setTimeout(() => { fresh.textContent = e.clipboardData.getData('text/plain').replace('"w365":1', 'w365:1'); }, 10);
+  });
+  const outcome = await injectAndSend(doc, 'Call tools like {"w365":1,"id":"c0"} and wait.', { timeoutMs: 100 });
+  assert.equal(outcome.ok, false);
+  assert.match(outcome.reason, /^paste-mismatch \(got 39 of 41 characters\)/);
+  assert.match(outcome.reason, /expected «"w365":1,"id":"c0"}andwait\.» but box has «w365:1,"id":"c0"}andwait\.»/);
 });

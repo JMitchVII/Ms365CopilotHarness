@@ -87,6 +87,13 @@ function makePasteEvent(win, text) {
 // markdown into formatting (fences, headings, emphasis). Compare without whitespace and markdown symbols.
 const normalise = s => s.replace(/[\s`#*_~>]+/g, '');
 
+// Where two normalised texts part ways, for the panel: "expected «...» but box has «...»".
+function firstDifference(want, got, span = 40) {
+  let i = 0;
+  while (i < want.length && want[i] === got[i]) i++;
+  return `expected «${want.slice(i, i + span)}» but box has «${got.slice(i, i + span)}»`;
+}
+
 // Pastes `text` into the composer and clicks send once the editor shows it and the send button has appeared.
 // Never sends half a message.
 export async function injectAndSend(doc, text, { timeoutMs = 5000, pollMs = 25 } = {}) {
@@ -110,7 +117,7 @@ export async function injectAndSend(doc, text, { timeoutMs = 5000, pollMs = 25 }
     await new Promise(r => setTimeout(r, pollMs));
   }
   if (pasted) return { ok: false, reason: 'selector-broken' };  // text is in, but no send button appeared
-  if (got) return { ok: false, reason: `paste-mismatch (got ${got.length} of ${want.length} characters)` };
+  if (got) return { ok: false, reason: `paste-mismatch (got ${got.length} of ${want.length} characters): ${firstDifference(want, got)}` };
   return { ok: false, reason: 'paste-ignored' };
 }
 

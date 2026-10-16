@@ -21,7 +21,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.danger { border-color: var(--danger); color: var(--danger); }
 select, textarea { font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 5px; }
 textarea { width: 100%; min-height: 60px; }
-.status { padding: 2px 8px; border-radius: 10px; background: var(--card); color: var(--muted); }
+.status { padding: 2px 8px; border-radius: 10px; max-width: 75%; overflow-wrap: anywhere; user-select: text; background: var(--card); color: var(--muted); }
 .status.good { color: var(--ok); }
 .status.bad { color: var(--danger); }
 .status.warn { color: var(--warn); }
