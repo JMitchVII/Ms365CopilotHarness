@@ -29,4 +29,24 @@ Describe 'File transport loop' {
         $result.data.content | Should -Be "1`thi"
         Test-Path (Join-Path $shared 'inbox\t1.json') | Should -BeFalse
     }
+
+    It 'FL-02 ignores files still being written (.tmp, Chrome .crswap)' {
+        Write-Inbox 'a.json.tmp' '{"v":1,"kind":"call","id":"a"'
+        Write-Inbox 'b.json.crswap' '{"v":1,"kind":"call","id":"b"'
+        Invoke-W365FileLoopOnce -Root $root -SharedDir $shared
+        @(Get-ChildItem (Join-Path $shared 'outbox')).Count | Should -Be 0
+        @(Get-ChildItem (Join-Path $shared 'inbox')).Count | Should -Be 2
+    }
+
+    It 'FL-03 writes the outbox file atomically (temp file, then rename) so readers never see half a result' {
+        Mock -ModuleName W365Agent Move-Item {
+            $script:moved = "$LiteralPath -> $Destination"
+            Microsoft.PowerShell.Management\Move-Item -LiteralPath $LiteralPath -Destination $Destination -Force
+        }
+        Write-Inbox 'c.json' '{"v":1,"kind":"call","id":"c","tool":"list_dir","args":{}}'
+        Invoke-W365FileLoopOnce -Root $root -SharedDir $shared
+        Should -Invoke -ModuleName W365Agent Move-Item -Times 1
+        $script:moved | Should -BeLike '*outbox*c.json.tmp -> *outbox*c.json'
+        (Read-Outbox 'c.json').id | Should -Be 'c'
+    }
 }

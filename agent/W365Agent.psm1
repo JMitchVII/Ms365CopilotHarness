@@ -421,7 +421,10 @@ function Invoke-W365FileLoopOnce {
     foreach ($file in Get-ChildItem -LiteralPath $inbox -Filter '*.json' -File) {
         $json = [System.IO.File]::ReadAllText($file.FullName)
         $reply = Get-HostReply $Root $json $LogPath
-        [System.IO.File]::WriteAllText((Join-Path $outbox $file.Name), $reply, $script:Utf8NoBom)
+        # Write then rename, so the extension never reads half a result.
+        $final = Join-Path $outbox $file.Name
+        [System.IO.File]::WriteAllText("$final.tmp", $reply, $script:Utf8NoBom)
+        Move-Item -LiteralPath "$final.tmp" -Destination $final -Force
         Remove-Item -LiteralPath $file.FullName -Force
     }
 }
