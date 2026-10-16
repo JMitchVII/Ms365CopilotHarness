@@ -50,7 +50,7 @@ test('CA-07 a virtualized code block with missing line rows is flagged incomplet
 test('CA-03 when the layout changes, reading returns null and checkPage names what is missing', async () => {
   const doc = new JSDOM('<main><p>Copilot was redesigned</p></main>').window.document;
   assert.equal(readLatestReply(doc), null);
-  assert.deepEqual(checkPage(doc), { ok: false, missing: ['feed', 'input', 'sendButton'] });
+  assert.deepEqual(checkPage(doc), { ok: false, missing: ['feed', 'input'] });
 
   const real = await fixture('chat-page-streaming.html');
   assert.deepEqual(checkPage(real), { ok: true, missing: [] });
@@ -110,4 +110,25 @@ test('CA-08 a security check dialog is detected and blocks sending', async () =>
   doc.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-label="Security check required"></div>');
   assert.deepEqual(await injectAndSend(doc, 'x'), { ok: false, reason: 'security-check' });
   assert.deepEqual(log, []);
+});
+
+test('CA-09 a second capture (idle reply, json block labelled "JSON") reads as a finished json fence', async () => {
+  const doc = await fixture('chat-idle-json.html');
+  const reply = readLatestReply(doc);
+  assert.equal(reply.messageId, '23290a81-392b-4804-9830-eda87b9fdb4f');
+  assert.equal(reply.busy, false);
+  assert.equal(reply.incomplete, false);
+  assert.ok(reply.text.includes('```json\n{\n  "name": "Alice",'), reply.text);
+  assert.ok(reply.text.includes('    "country": "Australia"\n  }\n}\n```'), reply.text);
+});
+
+test('CA-10 the send button only exists once the editor has text: injector waits for it', async () => {
+  const { doc, input, log } = await idlePage();
+  const button = doc.querySelector(SELECTORS.sendButton);
+  const parent = button.parentNode;
+  button.remove();
+  assert.deepEqual(checkPage(doc), { ok: true, missing: [] }, 'an empty composer without a send button is normal');
+  input.addEventListener('paste', () => setTimeout(() => parent.appendChild(button), 30));
+  assert.deepEqual(await injectAndSend(doc, 'hello'), { ok: true });
+  assert.deepEqual(log, [{ paste: 'hello' }, { click: 'hello' }]);
 });

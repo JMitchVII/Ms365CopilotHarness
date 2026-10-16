@@ -49,10 +49,10 @@ function textOf(node, state) {
 
 const tidy = text => text.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 
-// Checks the elements the harness can't work without. A non-empty `missing` means Copilot's layout changed
+// Checks the elements the harness can't work without (the send button only appears once the editor has text). A non-empty `missing` means Copilot's layout changed
 // and SELECTORS needs updating; the panel shows "selector broken".
 export function checkPage(doc) {
-  const missing = ['feed', 'input', 'sendButton'].filter(key => !doc.querySelector(SELECTORS[key]));
+  const missing = ['feed', 'input'].filter(key => !doc.querySelector(SELECTORS[key]));
   return { ok: missing.length === 0, missing };
 }
 
@@ -78,24 +78,27 @@ function makePasteEvent(win, text) {
 // Lexical renders each line as its own <p>, so newlines don't survive in textContent: compare without whitespace.
 const normalise = s => s.replace(/\s+/g, '');
 
-// Pastes `text` into the composer and clicks send once the editor shows it. Never sends half a message.
+// Pastes `text` into the composer and clicks send once the editor shows it and the send button has appeared.
+// Never sends half a message.
 export async function injectAndSend(doc, text, { timeoutMs = 3000, pollMs = 25 } = {}) {
   const input = doc.querySelector(SELECTORS.input);
-  const send = doc.querySelector(SELECTORS.sendButton);
-  if (!input || !send) return { ok: false, reason: 'selector-broken' };
+  if (!input) return { ok: false, reason: 'selector-broken' };
   if (hasSecurityCheck(doc)) return { ok: false, reason: 'security-check' };
   if (doc.querySelector(SELECTORS.stopButton)) return { ok: false, reason: 'busy' };
   input.focus?.();
   input.dispatchEvent(makePasteEvent(doc.defaultView, text));
   const want = normalise(text);
+  let pasted = false;
   for (let waited = 0; waited <= timeoutMs; waited += pollMs) {
-    if (normalise(input.textContent) === want) {
+    pasted = normalise(input.textContent) === want;
+    const send = doc.querySelector(SELECTORS.sendButton);
+    if (pasted && send) {
       send.click();
       return { ok: true };
     }
     await new Promise(r => setTimeout(r, pollMs));
   }
-  return { ok: false, reason: 'paste-ignored' };
+  return { ok: false, reason: pasted ? 'selector-broken' : 'paste-ignored' };
 }
 
 export function readLatestReply(doc) {
