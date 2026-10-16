@@ -4,7 +4,7 @@ const OPEN_FENCE = /^(`{3,})\s*([\w-]*)\s*$/;
 
 // Splits text into fenced blocks: [{ lang, body }], in document order.
 export function findFences(text) {
-  const lines = text.split('\n');
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
   const blocks = [];
   let open = null;
   for (const line of lines) {
@@ -22,6 +22,18 @@ export function findFences(text) {
     }
   }
   return blocks;
+}
+
+// Copilot sometimes turns straight quotes into smart quotes. Only repair them if the JSON doesn't parse as-is,
+// so smart quotes inside valid string values are kept.
+function parseLenient(body) {
+  try {
+    return JSON.parse(body);
+  } catch (e) {
+    const repaired = body.replace(/[“”„‟″]/g, '"');
+    if (repaired === body) throw e;
+    try { return JSON.parse(repaired); } catch { throw e; }
+  }
 }
 
 // Returns a description of the first problem with args, or null if they match the tool's schema.
@@ -52,7 +64,7 @@ export function parseReply(text, tools) {
     if (block.lang !== 'w365') return;
     let obj;
     try {
-      obj = JSON.parse(block.body);
+      obj = parseLenient(block.body);
     } catch (e) {
       errors.push({ code: 'E_PARSE', block: index, message: `Block ${index} is not valid JSON: ${e.message}` });
       return;

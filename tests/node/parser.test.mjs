@@ -100,3 +100,24 @@ test('PR-12 duplicate id in one reply: first runs, second is E_BAD_ARGS', () => 
   assert.equal(errors[0].block, 1);
   assert.match(errors[0].message, /duplicate/i);
 });
+
+test('PR-13 tolerates CRLF, trailing whitespace, 4-backtick fences and smart quotes', () => {
+  const call = '{"w365":1,"id":"q","tool":"list_dir","args":{}}';
+  const variants = {
+    crlf: ('Text\n' + fence('w365', call) + '\nmore').replace(/\n/g, '\r\n'),
+    trailingSpace: '```w365   \n' + call + '   \n```  ',
+    fourTicks: '````w365\n' + call + '\n````',
+    smartQuotes: fence('w365', call.replace(/"/g, (_, i) => (i % 2 ? '”' : '“'))),
+  };
+  for (const [name, reply] of Object.entries(variants)) {
+    const { calls, errors } = parseReply(reply, TOOLS);
+    assert.deepEqual(errors, [], name);
+    assert.deepEqual(calls, [{ id: 'q', tool: 'list_dir', args: {} }], name);
+  }
+});
+
+test('PR-13b smart quotes inside string values are left alone when JSON is already valid', () => {
+  const body = '{"w365":1,"id":"s","tool":"write_file","args":{"path":"a.txt","content":"say “hi”"}}';
+  const { calls } = parseReply(fence('w365', body), TOOLS);
+  assert.equal(calls[0].args.content, 'say “hi”');
+});
