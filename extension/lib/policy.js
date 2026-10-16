@@ -2,5 +2,6 @@
 
 export function decide(mode, tier) {
   if (mode === 'fullAuto') return 'run';
+  if (mode === 'tiered' && tier === 'read') return 'run';
   return 'ask';
 }
