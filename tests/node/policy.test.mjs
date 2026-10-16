@@ -21,3 +21,9 @@ test('PO-03 tiered runs read, asks for write and exec', () => {
 test('PO-04 ui tools are handled by the extension in every mode, never sent to the agent', () => {
   for (const mode of ['fullAuto', 'tiered', 'approveAll', 'bogus']) assert.equal(decide(mode, 'ui'), 'ui', mode);
 });
+
+test('PO-05 an unknown mode or tier fails safe to ask', () => {
+  for (const tier of AGENT_TIERS) assert.equal(decide('yolo', tier), 'ask', tier);
+  assert.equal(decide(undefined, 'read'), 'ask');
+  assert.equal(decide('fullAuto', 'mystery'), 'ask');
+});
