@@ -17,3 +17,7 @@ test('PO-03 tiered runs read, asks for write and exec', () => {
   assert.equal(decide('tiered', 'write'), 'ask');
   assert.equal(decide('tiered', 'exec'), 'ask');
 });
+
+test('PO-04 ui tools are handled by the extension in every mode, never sent to the agent', () => {
+  for (const mode of ['fullAuto', 'tiered', 'approveAll', 'bogus']) assert.equal(decide(mode, 'ui'), 'ui', mode);
+});
