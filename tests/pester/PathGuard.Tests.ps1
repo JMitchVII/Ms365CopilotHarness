@@ -15,4 +15,9 @@ Describe 'Resolve-WorkspacePath' {
     It 'PG-02 resolves a nested relative path' {
         Resolve-WorkspacePath -Root $root -Path 'src\lib\b.ps1' | Should -Be (Join-Path $root 'src\lib\b.ps1')
     }
+
+    It 'PG-03 rejects ..\ escapes with E_PATH_ESCAPE' {
+        { Resolve-WorkspacePath -Root $root -Path '..\outside.txt' } | Should -Throw '*E_PATH_ESCAPE*'
+        { Resolve-WorkspacePath -Root $root -Path 'src\..\..\outside.txt' } | Should -Throw '*E_PATH_ESCAPE*'
+    }
 }
