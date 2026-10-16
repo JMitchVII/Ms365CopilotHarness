@@ -3,7 +3,12 @@
 import { loadMode, saveMode } from '../lib/policy.js';
 
 export function createPanelState({ storage, send }) {
-  const state = { mode: 'tiered' };
+  const state = { mode: 'tiered', approvals: [] };
+
+  function answerApproval(requestId, approved) {
+    state.approvals = state.approvals.filter(a => a.requestId !== requestId);
+    send({ type: 'approval', requestId, approved });
+  }
 
   return {
     async load() {
@@ -13,6 +18,13 @@ export function createPanelState({ storage, send }) {
       await saveMode(storage, mode);
       state.mode = mode;
     },
+    handle(event) {
+      if (event.type === 'approval-request') {
+        state.approvals.push({ requestId: event.requestId, call: event.call, tier: event.tier });
+      }
+    },
+    approve: requestId => answerApproval(requestId, true),
+    deny: requestId => answerApproval(requestId, false),
     view: () => structuredClone(state),
   };
 }

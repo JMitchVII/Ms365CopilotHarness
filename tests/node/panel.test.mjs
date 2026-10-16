@@ -18,3 +18,20 @@ test('PN-01 the mode switcher shows the stored mode and saves changes', async ()
   assert.equal(panel.view().mode, 'fullAuto');
   assert.equal(storage.data.mode, 'fullAuto');
 });
+
+const writeCall = { id: 'w1', tool: 'write_file', args: { path: 'a.txt', content: 'x' } };
+
+test('PN-02 approval requests are queued with tool, args and tier; approve/deny answer the router', async () => {
+  const { panel, sent } = setup();
+  panel.handle({ type: 'approval-request', requestId: 'r1', call: writeCall, tier: 'write' });
+  panel.handle({ type: 'approval-request', requestId: 'r2', call: { id: 'x1', tool: 'run_ps', args: { command: 'ls' } }, tier: 'exec' });
+  assert.deepEqual(panel.view().approvals.map(a => [a.requestId, a.call.tool, a.tier]), [['r1', 'write_file', 'write'], ['r2', 'run_ps', 'exec']]);
+
+  panel.approve('r1');
+  panel.deny('r2');
+  assert.deepEqual(sent, [
+    { type: 'approval', requestId: 'r1', approved: true },
+    { type: 'approval', requestId: 'r2', approved: false },
+  ]);
+  assert.deepEqual(panel.view().approvals, []);
+});
