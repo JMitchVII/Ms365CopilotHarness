@@ -73,4 +73,22 @@ Describe 'File transport loop' {
         (Read-Outbox 'good.json').ok | Should -BeTrue
         @(Get-ChildItem (Join-Path $shared 'inbox')).Count | Should -Be 0
     }
+
+    It 'FL-06 the loop keeps a heartbeat file fresh so the extension can show "agent alive"' {
+        New-Item -ItemType File -Path (Join-Path $shared 'stop') | Out-Null
+        Start-W365FileLoop -Root $root -SharedDir $shared -PollMs 50 -MaxSeconds 10
+        $beat = Get-Content -Raw (Join-Path $shared 'heartbeat.json') | ConvertFrom-Json
+        ((Get-Date).ToUniversalTime() - [datetime]::Parse($beat.at).ToUniversalTime()).TotalSeconds | Should -BeLessThan 5
+        $beat.pid | Should -Be $PID
+    }
+
+    It 'FL-07 the loop processes pending work, then stops cleanly when a stop file appears' {
+        Write-Inbox 'last.json' '{"v":1,"kind":"call","id":"last","tool":"list_dir","args":{}}'
+        New-Item -ItemType File -Path (Join-Path $shared 'stop') | Out-Null
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        Start-W365FileLoop -Root $root -SharedDir $shared -PollMs 50 -MaxSeconds 10
+        $sw.Elapsed.TotalSeconds | Should -BeLessThan 5
+        (Read-Outbox 'last.json').ok | Should -BeTrue
+        Test-Path (Join-Path $shared 'stop') | Should -BeFalse -Because 'the stop file is consumed'
+    }
 }

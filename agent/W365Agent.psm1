@@ -429,5 +429,36 @@ function Invoke-W365FileLoopOnce {
     }
 }
 
+# Polls the inbox until a "stop" file appears (or MaxSeconds passes). Writes heartbeat.json every pass so the
+# extension can tell the agent is alive.
+function Start-W365FileLoop {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$SharedDir,
+        [int]$PollMs = 500,
+        [int]$MaxSeconds = 0,
+        [string]$LogPath
+    )
+    foreach ($dir in 'inbox', 'outbox') {
+        $path = Join-Path $SharedDir $dir
+        if (-not (Test-Path -LiteralPath $path)) { New-Item -ItemType Directory -Path $path -Force | Out-Null }
+    }
+    $stopFile = Join-Path $SharedDir 'stop'
+    $heartbeat = Join-Path $SharedDir 'heartbeat.json'
+    $started = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        $beat = ConvertTo-Json -Compress -InputObject ([ordered]@{
+            at = (Get-Date).ToUniversalTime().ToString('o'); pid = $PID; version = $script:AgentVersion })
+        [System.IO.File]::WriteAllText($heartbeat, $beat, $script:Utf8NoBom)
+        Invoke-W365FileLoopOnce -Root $Root -SharedDir $SharedDir -LogPath $LogPath
+        if (Test-Path -LiteralPath $stopFile) {
+            Remove-Item -LiteralPath $stopFile -Force
+            return
+        }
+        if ($MaxSeconds -gt 0 -and $started.Elapsed.TotalSeconds -ge $MaxSeconds) { return }
+        Start-Sleep -Milliseconds $PollMs
+    }
+}
+
 # Public: Resolve-WorkspacePath, the native framing functions and everything named *-W365*.
 Export-ModuleMember -Function Resolve-WorkspacePath, *-W365*, *-NativeMessage
