@@ -61,3 +61,60 @@ export function createNativeHost({ autoHello = true } = {}) {
   }
   return { connectNative, ports, runtime };
 }
+
+// In-memory File System Access API directory handle (what showDirectoryPicker returns).
+export function createDirectoryHandle(name = 'shared') {
+  const entries = new Map();  // name -> file record { text, lastModified } or directory handle
+  const dir = {
+    kind: 'directory',
+    name,
+    entries,
+    async getDirectoryHandle(child, { create = false } = {}) {
+      let entry = entries.get(child);
+      if (!entry) {
+        if (!create) throw Object.assign(new Error(`${child} not found`), { name: 'NotFoundError' });
+        entry = createDirectoryHandle(child);
+        entries.set(child, entry);
+      }
+      return entry;
+    },
+    async getFileHandle(child, { create = false } = {}) {
+      if (!entries.has(child)) {
+        if (!create) throw Object.assign(new Error(`${child} not found`), { name: 'NotFoundError' });
+        entries.set(child, { text: '', lastModified: Date.now() });
+      }
+      return fileHandle(child);
+    },
+    async removeEntry(child) {
+      if (!entries.delete(child)) throw Object.assign(new Error(`${child} not found`), { name: 'NotFoundError' });
+    },
+    async *values() { for (const key of [...entries.keys()]) yield entries.get(key).kind ? entries.get(key) : fileHandle(key); },
+    async queryPermission() { return dir.permission; },
+    async requestPermission() { dir.permission = 'granted'; return 'granted'; },
+    permission: 'granted',
+    // Test helpers (agent side)
+    writeText(child, text, lastModified = Date.now()) { entries.set(child, { text, lastModified }); },
+    readText(child) { return entries.get(child)?.text; },
+    names() { return [...entries.keys()].filter(k => !entries.get(k).kind).sort(); },
+  };
+  function fileHandle(child) {
+    return {
+      kind: 'file',
+      name: child,
+      async getFile() {
+        const rec = entries.get(child);
+        if (!rec) throw Object.assign(new Error(`${child} not found`), { name: 'NotFoundError' });
+        return { name: child, lastModified: rec.lastModified, text: async () => rec.text };
+      },
+      // Like Chrome: writes go to a swap copy and appear on close().
+      async createWritable() {
+        let buffer = '';
+        return {
+          async write(data) { buffer += typeof data === 'string' ? data : String(data); },
+          async close() { entries.set(child, { text: buffer, lastModified: Date.now() }); },
+        };
+      },
+    };
+  }
+  return dir;
+}
