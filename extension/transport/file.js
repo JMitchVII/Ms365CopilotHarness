@@ -11,6 +11,7 @@ const failure = (code, message) => Object.assign(new Error(message), { code });
 
 export function createFileTransport({ dir, pollMs = 250, timeoutMs = 130_000, heartbeatStaleMs = 10_000, onStatus = () => {} }) {
   let status = null;
+  const active = new Map();  // call id -> { name, cancelled }
   const setStatus = s => { if (s !== status) { status = s; onStatus(s); } };
 
   async function writeJson(box, name, value) {
@@ -39,14 +40,22 @@ export function createFileTransport({ dir, pollMs = 250, timeoutMs = 130_000, he
     const inbox = await dir.getDirectoryHandle('inbox', { create: true });
     const name = `${Date.now()}-${++counter}-${safe(id)}.json`;
     await writeJson(inbox, name, envelope);
-    return waitForReply(name, id);
+    const entry = { name, cancelled: false };
+    active.set(id, entry);
+    try {
+      return await waitForReply(entry, id);
+    } finally {
+      active.delete(id);
+    }
   }
 
   // Polls the outbox for the reply to `name`; reads it, deletes it and returns the parsed envelope.
-  async function waitForReply(name, id) {
+  async function waitForReply(entry, id) {
+    const { name } = entry;
     const outbox = await dir.getDirectoryHandle('outbox', { create: true });
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
+      if (entry.cancelled) throw failure('E_TRANSPORT', 'Cancelled by user');
       let text = null;
       try {
         text = await (await (await outbox.getFileHandle(name)).getFile()).text();
@@ -73,5 +82,13 @@ export function createFileTransport({ dir, pollMs = 250, timeoutMs = 130_000, he
     return result;
   }
 
-  return { connect, send };
+  // The agent can't interrupt a call it has started, but a request it hasn't picked up yet is withdrawn.
+  function cancel(id) {
+    const entry = active.get(id);
+    if (!entry) return;
+    entry.cancelled = true;
+    dir.getDirectoryHandle('inbox').then(inbox => inbox.removeEntry(entry.name)).catch(() => {});
+  }
+
+  return { connect, send, cancel };
 }
