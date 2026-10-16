@@ -43,4 +43,11 @@ Describe 'Invoke-W365Call' {
         { Invoke-W365Call -Root $root -Call $null } | Should -Not -Throw
         (Invoke-W365Call -Root $root -Call $null).error.code | Should -Be 'E_BAD_ARGS'
     }
+
+    It 'AD-04 always echoes the call id, on success and failure, for JSON objects and hashtables' {
+        (Invoke-W365Call -Root $root -Call @{ id = 'h1'; tool = 'list_dir'; args = @{} }).id | Should -Be 'h1'
+        (Invoke-W365Call -Root $root -Call @{ id = 'h2'; tool = 'nope'; args = @{} }).id | Should -Be 'h2'
+        $json = '{"id":"h3","tool":"read_file","args":{"path":"missing"}}' | ConvertFrom-Json
+        (Invoke-W365Call -Root $root -Call $json).id | Should -Be 'h3'
+    }
 }
