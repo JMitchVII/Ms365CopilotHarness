@@ -80,7 +80,8 @@ function Invoke-W365ReadFile {
     param([Parameter(Mandatory)][string]$Root, $CallArgs)
     $rel = Get-CallArg $CallArgs 'path'
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
-    $offset = [Math]::Max(1, [int](Get-CallArg $CallArgs 'offset' 1))
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Throw-W365 'E_NOT_FOUND' "No file '$rel'" }
+    $offset =[Math]::Max(1, [int](Get-CallArg $CallArgs 'offset' 1))
     $limit = [Math]::Max(1, [int](Get-CallArg $CallArgs 'limit' 2000))
     $lines = [System.IO.File]::ReadAllText($full) -split '\r?\n'
     $end = [Math]::Min($lines.Count, $offset + $limit - 1)

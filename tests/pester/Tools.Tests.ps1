@@ -48,5 +48,11 @@ Describe 'Agent tools' {
             $tail.content | Should -Be "9`tL9`n10`tL10"
             $tail.endLine | Should -Be 10
         }
+
+        It 'AT-05 throws E_NOT_FOUND for a missing file (or a directory)' {
+            { Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'missing.txt' } } | Should -Throw 'E_NOT_FOUND*'
+            New-Item -ItemType Directory -Path (Join-Path $root 'd') | Out-Null
+            { Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'd' } } | Should -Throw 'E_NOT_FOUND*'
+        }
     }
 }
