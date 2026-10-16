@@ -24,6 +24,14 @@ export function findFences(text) {
   return blocks;
 }
 
+// Returns a description of the first problem with args, or null if they match the tool's schema.
+function checkArgs(spec, args) {
+  for (const [name, arg] of Object.entries(spec.args)) {
+    if (arg.required && !(name in args)) return `missing required arg "${name}"`;
+  }
+  return null;
+}
+
 // tools: the `tools` array from protocol/tools.json. When given, tool names and args are validated.
 export function parseReply(text, tools) {
   const byName = tools ? new Map(tools.map(t => [t.name, t])) : null;
@@ -46,6 +54,13 @@ export function parseReply(text, tools) {
     if (byName && !spec) {
       errors.push({ code: 'E_UNKNOWN_TOOL', block: index, id: obj.id, message: `Unknown tool "${obj.tool}"` });
       return;
+    }
+    if (spec) {
+      const problem = checkArgs(spec, obj.args ?? {});
+      if (problem) {
+        errors.push({ code: 'E_BAD_ARGS', block: index, id: obj.id, message: `${obj.tool}: ${problem}` });
+        return;
+      }
     }
     calls.push({ id: obj.id, tool: obj.tool, args: obj.args });
   });

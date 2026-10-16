@@ -66,3 +66,12 @@ test('PR-09 unknown tool yields E_UNKNOWN_TOOL carrying the call id', () => {
   assert.equal(errors[0].id, 't9');
   assert.match(errors[0].message, /delete_everything/);
 });
+
+test('PR-10 missing required arg yields E_BAD_ARGS naming the arg', () => {
+  const { calls, errors } = parseReply(
+    fence('w365', '{"w365":1,"id":"t10","tool":"read_file","args":{}}'), TOOLS);
+  assert.deepEqual(calls, []);
+  assert.equal(errors[0].code, 'E_BAD_ARGS');
+  assert.equal(errors[0].id, 't10');
+  assert.match(errors[0].message, /\bpath\b/);
+});
