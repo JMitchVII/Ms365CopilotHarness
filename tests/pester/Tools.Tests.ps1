@@ -112,5 +112,17 @@ Describe 'Agent tools' {
                 Should -Throw 'E_EDIT_NO_MATCH*'
             [System.IO.File]::ReadAllText($file) | Should -BeExactly 'abc'
         }
+
+        It 'AT-11 several matches throw E_EDIT_AMBIGUOUS unless replaceAll is true' {
+            $file = Join-Path $root 'm.txt'
+            [System.IO.File]::WriteAllText($file, 'x = 1; x = 2')
+            { Invoke-W365EditFile -Root $root -CallArgs @{ path = 'm.txt'; oldText = 'x ='; newText = 'y =' } } |
+                Should -Throw 'E_EDIT_AMBIGUOUS*'
+            [System.IO.File]::ReadAllText($file) | Should -BeExactly 'x = 1; x = 2'
+
+            $data = Invoke-W365EditFile -Root $root -CallArgs @{ path = 'm.txt'; oldText = 'x ='; newText = 'y ='; replaceAll = $true }
+            [System.IO.File]::ReadAllText($file) | Should -BeExactly 'y = 1; y = 2'
+            $data.replacements | Should -Be 2
+        }
     }
 }
