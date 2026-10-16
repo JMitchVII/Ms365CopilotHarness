@@ -58,3 +58,13 @@ test('FM-04b output under the cap is unchanged', () => {
   const results = [{ id: 'a', ok: true, data: { content: 'hi' } }];
   assert.equal(formatResults(results, { cap: 2_000 }), formatResult(results[0]));
 });
+
+test('FM-05 content containing backticks cannot close the fence', () => {
+  const content = 'before\n```\nafter ``` and `inline`';
+  const result = { id: 'bt', ok: true, data: { content } };
+  const text = formatResult(result);
+  const blocks = findFences(text);
+  assert.equal(blocks.length, 1);
+  assert.ok(!blocks[0].body.includes('`'), 'no raw backticks inside the block');
+  assert.deepEqual(JSON.parse(blocks[0].body), result);
+});

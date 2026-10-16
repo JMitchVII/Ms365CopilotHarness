@@ -4,8 +4,9 @@ export const DEFAULT_CAP = 12_000;
 export const TRUNCATION_HINT =
   'Output truncated to fit the chat. Use read_file offset/limit, a narrower search, or filter run_ps output.';
 
+// Backticks are written as ` (still valid JSON) so file content can never close or open a fence.
 export function formatResult(result) {
-  return '```w365-result\n' + JSON.stringify(result) + '\n```';
+  return '```w365-result\n' + JSON.stringify(result).replace(/`/g, '\\u0060') + '\n```';
 }
 
 // Converts a parser error ({code, message, block, id?}) into a result Copilot can match to its call.
