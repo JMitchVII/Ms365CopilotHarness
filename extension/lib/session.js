@@ -7,6 +7,7 @@ export function createSession({ tools, transport, ledger, getMode, bootstrap, in
   let panel = null;
   let status = 'unknown';
   let nextRequest = 0;
+  let copilotTab = null;
   const pending = new Map();  // requestId -> { event, resolve } for prompts waiting on the panel
 
   function emit(event) {
@@ -53,7 +54,39 @@ export function createSession({ tools, transport, ledger, getMode, bootstrap, in
       case 'approval': answer(msg.requestId, !!msg.approved); break;
       case 'answer': answer(msg.requestId, String(msg.text ?? '')); break;
       case 'continue': answer(msg.requestId, !!msg.go); break;
+      case 'stop': stop(); break;
+      case 'start-session': startSession(); break;
     }
+  }
+
+  // Kill switch: the router drops the reply it is on; every open prompt is answered "no".
+  function stop() {
+    router.stop();
+    for (const requestId of [...pending.keys()]) {
+      const { event } = pending.get(requestId);
+      answer(requestId, event.type === 'question' ? '' : false);
+    }
+  }
+
+  async function startSession() {
+    if (copilotTab == null) return setStatus('no-copilot-tab');
+    router.resetTurns();
+    await paste(copilotTab, bootstrap);
+  }
+
+  // Pastes into the Copilot tab, waiting out "still generating"; other failures are shown in the panel.
+  async function paste(tabId, text) {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const outcome = await injectInto(tabId, text);
+      if (outcome?.ok) return true;
+      if (outcome?.reason !== 'busy') {
+        setStatus(outcome?.reason ?? 'inject-failed');
+        return false;
+      }
+      await new Promise(r => setTimeout(r, retryDelayMs));
+    }
+    setStatus('inject-failed');
+    return false;
   }
 
   function attachPanel(port) {
@@ -66,9 +99,17 @@ export function createSession({ tools, transport, ledger, getMode, bootstrap, in
 
   async function onReply({ tabId, conversation, messageId, text }) {
     const out = await router.handleReply({ conversation, messageId, text });
-    if (out.message) await injectInto(tabId, out.message);
+    copilotTab = tabId;
+    if (out.message) await paste(tabId, out.message);
     return out;
   }
 
-  return { onReply, attachPanel, setStatus };
+  return {
+    onReply,
+    attachPanel,
+    setStatus,
+    noteCopilotTab(tabId) { copilotTab = tabId; },
+    // The user typed in Copilot themselves: the run of automatic turns is over.
+    onUserTurn() { router.resetTurns(); },
+  };
 }

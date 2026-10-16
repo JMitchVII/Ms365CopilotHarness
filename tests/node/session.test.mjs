@@ -63,3 +63,44 @@ test('WR-03 a panel that opens later is sent the pending approvals and the curre
   assert.ok(panel.posted.some(m => m.type === 'approval-request' && m.call.id === 'w1'));
   assert.ok(panel.posted.some(m => m.type === 'status' && m.status === 'connected'));
 });
+
+test('WR-04 Stop from the panel abandons the reply: pending prompts close and nothing is pasted', async () => {
+  const { session, transport, injected } = setup();
+  const panel = createPort();
+  session.attachPanel(panel);
+  const done = session.onReply({ tabId: 7, conversation: 'c', messageId: 'm1', text: call('w1', 'write_file', { path: 'a', content: 'x' }) });
+  await until(() => panel.posted.find(m => m.type === 'approval-request'));
+  panel.fromOther({ type: 'stop' });
+  const out = await done;
+  assert.equal(out.stopped, true);
+  assert.equal(transport.sent.length, 0);
+  assert.equal(injected.length, 0);
+
+  const late = createPort();
+  session.attachPanel(late);
+  assert.ok(!late.posted.some(m => m.type === 'approval-request'), 'no stale prompts replayed');
+});
+
+test('WR-05 Start session pastes the bootstrap into the Copilot tab and resets the loop guard', async () => {
+  const { session, injected } = setup();
+  const panel = createPort();
+  session.attachPanel(panel);
+  session.noteCopilotTab(9);
+  panel.fromOther({ type: 'start-session' });
+  await until(() => injected.length);
+  assert.deepEqual(injected, [{ tabId: 9, text: 'BOOTSTRAP TEXT' }]);
+});
+
+test('WR-06 pasting retries while Copilot is busy, and stops with a status on a security check', async () => {
+  let attempts = 0;
+  const busyTwice = setup({ inject: async () => (++attempts <= 2 ? { ok: false, reason: 'busy' } : { ok: true }) });
+  await busyTwice.session.onReply({ tabId: 7, conversation: 'c', messageId: 'm1', text: call('t1', 'list_dir') });
+  assert.equal(busyTwice.injected.length, 3);
+
+  const blocked = setup({ inject: async () => ({ ok: false, reason: 'security-check' }) });
+  const panel = createPort();
+  blocked.session.attachPanel(panel);
+  await blocked.session.onReply({ tabId: 7, conversation: 'c', messageId: 'm1', text: call('t1', 'list_dir') });
+  assert.equal(blocked.injected.length, 1);
+  assert.ok(panel.posted.some(m => m.type === 'status' && m.status === 'security-check'));
+});
