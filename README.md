@@ -33,7 +33,9 @@ After editing `protocol/tools.json` or `prompt/bootstrap.md`, run `npm run sync`
    The agent can only touch files inside the workspace folder. If the installer warns about blocked files,
    run the `Unblock-File` line it prints. Undo with `agent\uninstall-host.ps1`.
 3. **Custom instructions**: paste `prompt/copilot-instructions.md` into Copilot's custom instructions.
-4. Click the extension's toolbar icon to open the side panel. Choose an approval mode.
+4. Pin the extension (puzzle-piece icon → pin), then click its toolbar icon to open the side panel. Choose an
+   approval mode. Reload any Copilot tab that was open before the extension was loaded or reloaded, or the panel
+   shows `tab-unreachable`.
 
 ## Use
 
