@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatResult, formatResults, errorResult } from '../../extension/lib/formatter.js';
+import { formatResult, formatResults, errorResult, formatUserAnswer } from '../../extension/lib/formatter.js';
 import { findFences } from '../../extension/lib/parser.js';
 
 test('FM-01 formatResult(ok) produces a w365-result block with compact JSON', () => {
@@ -67,4 +67,12 @@ test('FM-05 content containing backticks cannot close the fence', () => {
   assert.equal(blocks.length, 1);
   assert.ok(!blocks[0].body.includes('`'), 'no raw backticks inside the block');
   assert.deepEqual(JSON.parse(blocks[0].body), result);
+});
+
+test('FM-06 formatUserAnswer turns an ask_user reply into a result for that call', () => {
+  const blocks = findFences(formatUserAnswer('q1', 'Use the `src` folder, please.'));
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].lang, 'w365-result');
+  assert.deepEqual(JSON.parse(blocks[0].body),
+    { id: 'q1', ok: true, data: { answer: 'Use the `src` folder, please.' } });
 });

@@ -55,3 +55,8 @@ function longestString(results) {
   results.forEach((r, index) => { if (r.data !== undefined) visit(r, 'data', index); });
   return best;
 }
+
+// The user's reply to an ask_user call, as that call's result.
+export function formatUserAnswer(id, answer) {
+  return formatResult({ id, ok: true, data: { answer } });
+}
