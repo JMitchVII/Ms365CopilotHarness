@@ -37,6 +37,20 @@ Describe 'Resolve-WorkspacePath' {
         { Resolve-WorkspacePath -Root $root -Path '..\ws-evil\x.txt' } | Should -Throw '*E_PATH_ESCAPE*'
     }
 
+    It 'PG-07 rejects a junction inside the root that points outside it' {
+        $outside = Join-Path $TestDrive 'outside'
+        New-Item -ItemType Directory -Path $outside -Force | Out-Null
+        Set-Content -Path (Join-Path $outside 'secret.txt') -Value 'x'
+        New-Item -ItemType Junction -Path (Join-Path $root 'link') -Target $outside | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $root 'ok') | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $root 'innerlink') -Target (Join-Path $root 'ok') | Out-Null
+
+        { Resolve-WorkspacePath -Root $root -Path 'link\secret.txt' } | Should -Throw '*E_PATH_ESCAPE*'
+        { Resolve-WorkspacePath -Root $root -Path 'link\new\file.txt' } | Should -Throw '*E_PATH_ESCAPE*'
+        { Resolve-WorkspacePath -Root $root -Path 'link' } | Should -Throw '*E_PATH_ESCAPE*'
+        Resolve-WorkspacePath -Root $root -Path 'innerlink\a.txt' | Should -Be (Join-Path $root 'innerlink\a.txt')
+    }
+
     It 'PG-08 accepts forward slashes and normalises them' {
         Resolve-WorkspacePath -Root $root -Path 'src/lib/b.ps1' | Should -Be (Join-Path $root 'src\lib\b.ps1')
     }
