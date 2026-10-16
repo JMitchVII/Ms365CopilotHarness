@@ -3,7 +3,7 @@
 import { loadMode, saveMode } from '../lib/policy.js';
 
 export function createPanelState({ storage, send }) {
-  const state = { mode: 'tiered', approvals: [] };
+  const state = { mode: 'tiered', approvals: [], questions: [] };
 
   function answerApproval(requestId, approved) {
     state.approvals = state.approvals.filter(a => a.requestId !== requestId);
@@ -19,12 +19,24 @@ export function createPanelState({ storage, send }) {
       state.mode = mode;
     },
     handle(event) {
-      if (event.type === 'approval-request') {
-        state.approvals.push({ requestId: event.requestId, call: event.call, tier: event.tier });
+      switch (event.type) {
+        case 'approval-request':
+          state.approvals.push({ requestId: event.requestId, call: event.call, tier: event.tier });
+          break;
+        case 'question':
+          state.questions.push({ requestId: event.requestId, question: event.question });
+          break;
       }
     },
     approve: requestId => answerApproval(requestId, true),
     deny: requestId => answerApproval(requestId, false),
+    approveAll() {
+      for (const { requestId } of [...state.approvals]) answerApproval(requestId, true);
+    },
+    answer(requestId, text) {
+      state.questions = state.questions.filter(q => q.requestId !== requestId);
+      send({ type: 'answer', requestId, text });
+    },
     view: () => structuredClone(state),
   };
 }
