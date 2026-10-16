@@ -14,6 +14,46 @@ BeforeAll {
     }
 }
 
+Describe 'host.ps1 process' {
+    It 'NH-03 writes nothing but framed messages to stdout, even when PowerShell output streams are noisy' {
+        $root = Join-Path $TestDrive 'proc-ws'
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $hostScript = Join-Path $PSScriptRoot '..\..\agent\host.ps1'
+
+        $psi = [System.Diagnostics.ProcessStartInfo]::new('powershell.exe',
+            "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$hostScript`" chrome-extension://abc/ --parent-window=0")
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardInput = $true
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.EnvironmentVariables['W365_ROOT'] = $root
+        $psi.EnvironmentVariables['W365_HOST_NOISE'] = '1'
+        $psi.EnvironmentVariables['W365_LOG'] = Join-Path $TestDrive 'proc-host.log'
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        $stdout = [System.IO.MemoryStream]::new()
+        $copy = $proc.StandardOutput.BaseStream.CopyToAsync($stdout)
+        $stderr = $proc.StandardError.ReadToEndAsync()
+
+        $in = New-InputStream @(
+            '{"v":1,"kind":"hello"}'
+            '{"v":1,"kind":"call","id":"r1","tool":"run_ps","args":{"command":"Write-Host loud; Write-Output quiet"}}'
+            '{"v":1,"kind":"call","id":"r2","tool":"read_file","args":{"path":"missing.txt"}}'
+        )
+        $in.CopyTo($proc.StandardInput.BaseStream)
+        $proc.StandardInput.Close()
+        $proc.WaitForExit(30000) | Should -BeTrue
+        $copy.Wait(5000) | Out-Null
+
+        $messages = @(Read-AllMessages $stdout)
+        $stdout.Position | Should -Be $stdout.Length -Because 'no stray bytes after the last frame'
+        $messages.Count | Should -Be 3 -Because "stderr was: $($stderr.Result)"
+        $messages[0].kind | Should -Be 'hello'
+        $messages[0].root | Should -Be ([System.IO.Path]::GetFullPath($root))
+        $messages[1].data.stdout | Should -BeLike '*loud*'
+        $messages[2].error.code | Should -Be 'E_NOT_FOUND'
+    }
+}
+
 Describe 'Invoke-W365HostLoop' {
     BeforeEach {
         $script:root = Join-Path $TestDrive 'ws'
