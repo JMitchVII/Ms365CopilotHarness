@@ -335,7 +335,9 @@ function Read-NativeMessage {
 function Write-NativeMessage {
     param([Parameter(Mandatory)][System.IO.Stream]$Stream, [Parameter(Mandatory)][string]$Json)
     $body = $script:Utf8NoBom.GetBytes($Json)
-    $frame = [byte[]]::new($body.Length + 4)
+    # Chrome disconnects a host that sends more than 1 MB in one message.
+    if ($body.Length -gt 1MB) { ThrowW365 'E_TOO_LARGE' "Message is $($body.Length) bytes; the limit is 1 MB" }
+    $frame =[byte[]]::new($body.Length + 4)
     [System.BitConverter]::GetBytes([int32]$body.Length).CopyTo($frame, 0)
     $body.CopyTo($frame, 4)
     $Stream.Write($frame, 0, $frame.Length)

@@ -60,4 +60,20 @@ Describe 'Write-NativeMessage' {
         $stream.Position = 0
         Read-NativeMessage -Stream $stream | Should -BeExactly $json
     }
+
+    It 'NF-06 length counts UTF-8 bytes, not characters' {
+        $json = "{`"t`":`"caf$([char]0xE9) $([char]0x65E5)`"}"
+        $stream = [System.IO.MemoryStream]::new()
+        Write-NativeMessage -Stream $stream -Json $json
+        [System.BitConverter]::ToInt32($stream.ToArray(), 0) | Should -Be ([System.Text.Encoding]::UTF8.GetByteCount($json))
+        $stream.Position = 0
+        Read-NativeMessage -Stream $stream | Should -BeExactly $json
+    }
+
+    It 'NF-07 refuses messages over 1 MB (Chrome would drop the connection) with E_TOO_LARGE, writing nothing' {
+        $json = '{"s":"' + ('x' * 1MB) + '"}'
+        $stream = [System.IO.MemoryStream]::new()
+        { Write-NativeMessage -Stream $stream -Json $json } | Should -Throw 'E_TOO_LARGE*'
+        $stream.Length | Should -Be 0
+    }
 }
