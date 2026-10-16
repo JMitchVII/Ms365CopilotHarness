@@ -8,3 +8,8 @@ export function formatResult(result) {
 export function errorResult({ code, message, block, id }) {
   return { id: id ?? `block-${block}`, ok: false, error: { code, message } };
 }
+
+// All results for one Copilot turn, as a single message.
+export function formatResults(results) {
+  return results.map(formatResult).join('\n\n');
+}
