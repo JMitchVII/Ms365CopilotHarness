@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
-import { readLatestReply, readCodeBlock } from '../../extension/content/copilot-adapter.js';
+import { readLatestReply, readCodeBlock, checkPage, SELECTORS } from '../../extension/content/copilot-adapter.js';
 
 const fixture = async name =>
   new JSDOM(await readFile(new URL(`../../protocol/fixtures/dom/${name}`, import.meta.url), 'utf8')).window.document;
@@ -45,4 +45,20 @@ test('CA-07 a virtualized code block with missing line rows is flagged incomplet
   chat.querySelector('[data-message-index="1"]').remove();
   chat.querySelector('[data-line-index="1"]').remove();
   assert.equal(readLatestReply(chat).incomplete, true, 'the reply as a whole is incomplete');
+});
+
+test('CA-03 when the layout changes, reading returns null and checkPage names what is missing', async () => {
+  const doc = new JSDOM('<main><p>Copilot was redesigned</p></main>').window.document;
+  assert.equal(readLatestReply(doc), null);
+  assert.deepEqual(checkPage(doc), { ok: false, missing: ['feed', 'input', 'sendButton'] });
+
+  const real = await fixture('chat-page-streaming.html');
+  assert.deepEqual(checkPage(real), { ok: true, missing: [] });
+});
+
+test('CA-06 all selectors live in one config object with the required keys', () => {
+  for (const key of ['feed', 'turn', 'reply', 'replyArticle', 'stopButton', 'codeBlock', 'codeLabel', 'codeLine',
+    'input', 'sendButton', 'securityCheck']) {
+    assert.equal(typeof SELECTORS[key], 'string', key);
+  }
 });

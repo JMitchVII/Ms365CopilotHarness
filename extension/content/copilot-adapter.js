@@ -2,7 +2,11 @@
 // and fai-/scriptor- classes; the hashed CSS classes change between Copilot builds.
 
 export const SELECTORS = {
-  turn: '[data-testid="m365-chat-llm-web-ui-chat-message"][data-message-index]',
+  feed: '[role="feed"]',
+  input: '#m365-chat-editor-target-element',
+  sendButton: '.fai-SendButton',
+  securityCheck: '[role="dialog"][aria-label="Security check required"]',
+  turn:'[data-testid="m365-chat-llm-web-ui-chat-message"][data-message-index]',
   reply: '[data-testid="copilot-message-div"] [data-testid="markdown-reply"][data-message-id]',
   replyArticle: '.fai-CopilotMessage',
   stopButton: 'button[aria-label="Stop generating"]',
@@ -44,6 +48,13 @@ function textOf(node, state) {
 }
 
 const tidy = text => text.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+
+// Checks the elements the harness can't work without. A non-empty `missing` means Copilot's layout changed
+// and SELECTORS needs updating; the panel shows "selector broken".
+export function checkPage(doc) {
+  const missing = ['feed', 'input', 'sendButton'].filter(key => !doc.querySelector(SELECTORS[key]));
+  return { ok: missing.length === 0, missing };
+}
 
 export function readLatestReply(doc) {
   const turns = doc.querySelectorAll(SELECTORS.turn);
