@@ -83,6 +83,8 @@ export async function injectAndSend(doc, text, { timeoutMs = 3000, pollMs = 25 }
   const input = doc.querySelector(SELECTORS.input);
   const send = doc.querySelector(SELECTORS.sendButton);
   if (!input || !send) return { ok: false, reason: 'selector-broken' };
+  if (hasSecurityCheck(doc)) return { ok: false, reason: 'security-check' };
+  if (doc.querySelector(SELECTORS.stopButton)) return { ok: false, reason: 'busy' };
   input.focus?.();
   input.dispatchEvent(makePasteEvent(doc.defaultView, text));
   const want = normalise(text);

@@ -95,3 +95,19 @@ test('CA-04b injector gives up without sending if the editor ignores the paste',
   assert.deepEqual(outcome, { ok: false, reason: 'paste-ignored' });
   assert.deepEqual(log.filter(e => e.click), []);
 });
+
+test('CA-05 injector refuses to send while Copilot is still generating', async () => {
+  const { doc, log } = await idlePage();
+  doc.querySelector(SELECTORS.sendButton).setAttribute('aria-label', 'Stop generating');
+  assert.deepEqual(await injectAndSend(doc, 'x'), { ok: false, reason: 'busy' });
+  assert.deepEqual(log, [], 'nothing pasted, nothing clicked');
+});
+
+test('CA-08 a security check dialog is detected and blocks sending', async () => {
+  assert.equal(hasSecurityCheck(await fixture('chat-page-streaming.html')), true);
+  const { doc, log } = await idlePage();
+  assert.equal(hasSecurityCheck(doc), false);
+  doc.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-label="Security check required"></div>');
+  assert.deepEqual(await injectAndSend(doc, 'x'), { ok: false, reason: 'security-check' });
+  assert.deepEqual(log, []);
+});
