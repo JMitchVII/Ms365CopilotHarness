@@ -418,7 +418,7 @@ function Invoke-W365FileLoopOnce {
     param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$SharedDir, [string]$LogPath)
     $inbox = Join-Path $SharedDir 'inbox'
     $outbox = Join-Path $SharedDir 'outbox'
-    foreach ($file in Get-ChildItem -LiteralPath $inbox -Filter '*.json' -File) {
+    foreach ($file in Get-ChildItem -LiteralPath $inbox -Filter '*.json' -File | Sort-Object LastWriteTimeUtc, Name) {
         $json = [System.IO.File]::ReadAllText($file.FullName)
         $reply = Get-HostReply $Root $json $LogPath
         # Write then rename, so the extension never reads half a result.

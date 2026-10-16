@@ -49,4 +49,28 @@ Describe 'File transport loop' {
         $script:moved | Should -BeLike '*outbox*c.json.tmp -> *outbox*c.json'
         (Read-Outbox 'c.json').id | Should -Be 'c'
     }
+
+    It 'FL-04 processes several inbox files oldest first' {
+        $base = (Get-Date).AddMinutes(-10)
+        foreach ($entry in @(@{ n = 'z-first'; m = 0 }, @{ n = 'a-second'; m = 1 }, @{ n = 'm-third'; m = 2 })) {
+            $body = '{"v":1,"kind":"call","id":"' + $entry.n + '","tool":"write_file","args":{"path":"order.txt","content":"' + $entry.n + '"}}'
+            Write-Inbox "$($entry.n).json" $body
+            (Get-Item (Join-Path $shared "inbox\$($entry.n).json")).LastWriteTime = $base.AddSeconds($entry.m)
+        }
+        Mock -ModuleName W365Agent Get-HostReply { $script:order += @(($Json | ConvertFrom-Json).id); '{}' }
+        $script:order = @()
+
+        Invoke-W365FileLoopOnce -Root $root -SharedDir $shared
+
+        $script:order | Should -Be @('z-first', 'a-second', 'm-third')
+    }
+
+    It 'FL-05 a corrupt inbox file gets an error result in the outbox and the loop carries on' {
+        Write-Inbox 'bad.json' '{"v":1, this is not json'
+        Write-Inbox 'good.json' '{"v":1,"kind":"call","id":"good","tool":"list_dir","args":{}}'
+        Invoke-W365FileLoopOnce -Root $root -SharedDir $shared
+        (Read-Outbox 'bad.json').error.code | Should -Be 'E_PARSE'
+        (Read-Outbox 'good.json').ok | Should -BeTrue
+        @(Get-ChildItem (Join-Path $shared 'inbox')).Count | Should -Be 0
+    }
 }
