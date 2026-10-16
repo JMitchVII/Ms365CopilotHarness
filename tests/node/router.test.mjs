@@ -107,3 +107,21 @@ test('RT-06 parse errors go back to Copilot as results without touching the tran
   const again = await router.handleReply({ conversation: 'c', messageId: 'm1', text });
   assert.equal(again.message, null, 'errors for the same reply are reported once');
 });
+
+test('RT-07 ask_user waits for the panel answer and returns it as the call result', async () => {
+  const ui = fakeUi({ answer: c => `use ${c.args.question.length} chars` });
+  const { router, transport } = setup({ ui, mode: 'fullAuto' });
+  const out = await router.handleReply({ conversation: 'c', text: call('q1', 'ask_user', { question: 'Which folder?' }) });
+  assert.equal(transport.sent.length, 0);
+  assert.equal(ui.questions[0].args.question, 'Which folder?');
+  assert.deepEqual(resultsIn(out.message), [{ id: 'q1', ok: true, data: { answer: 'use 13 chars' } }]);
+});
+
+test('RT-08 task_done notifies the panel and stops auto-continuation', async () => {
+  const { router, transport, ui } = setup();
+  const out = await router.handleReply({ conversation: 'c', text: 'All done.\n' + call('d1', 'task_done', { summary: 'Fixed it' }) });
+  assert.equal(transport.sent.length, 0);
+  assert.deepEqual(ui.events, [{ taskDone: 'Fixed it' }]);
+  assert.equal(out.done, true);
+  assert.equal(out.message, null);
+});
