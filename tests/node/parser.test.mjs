@@ -27,3 +27,9 @@ test('PR-05 other fenced languages are ignored', () => {
   const reply = fence('powershell', 'Get-ChildItem') + '\n' + fence('json', '{"a":1}');
   assert.deepEqual(parseReply(reply), { calls: [], errors: [] });
 });
+
+test('PR-06 two w365 blocks yield two calls in document order', () => {
+  const reply = fence('w365', '{"w365":1,"id":"a","tool":"list_dir","args":{}}') + '\nthen\n' +
+    fence('w365', '{"w365":1,"id":"b","tool":"read_file","args":{"path":"x.txt"}}');
+  assert.deepEqual(parseReply(reply).calls.map(c => c.id), ['a', 'b']);
+});
