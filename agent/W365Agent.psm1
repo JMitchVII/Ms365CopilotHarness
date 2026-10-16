@@ -167,5 +167,34 @@ function Invoke-W365EditFile {
     [ordered]@{ path = $rel; replacements = $count }
 }
 
+# All files under a folder, sorted, without descending into junctions or symlinked folders.
+function Get-WorkspaceFiles {
+    param([string]$Dir)
+    $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
+    $pending = [System.Collections.Generic.Stack[string]]::new()
+    $pending.Push($Dir)
+    while ($pending.Count -gt 0) {
+        foreach ($item in Get-ChildItem -LiteralPath $pending.Pop() -Force -ErrorAction SilentlyContinue) {
+            if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { continue }
+            if ($item.PSIsContainer) { $pending.Push($item.FullName) } else { $files.Add($item) }
+        }
+    }
+    $files | Sort-Object FullName
+}
+
+function Invoke-W365Search {
+    param([Parameter(Mandatory)][string]$Root, $CallArgs)
+    $pattern = [string](Get-CallArg $CallArgs 'pattern')
+    $rootFull = Resolve-WorkspacePath -Root $Root -Path ''
+    $dir = Resolve-WorkspacePath -Root $Root -Path (Get-CallArg $CallArgs 'path' '.')
+    $found = @(foreach ($file in Get-WorkspaceFiles $dir) {
+        $rel = $file.FullName.Substring($rootFull.Length + 1)
+        foreach ($m in Select-String -LiteralPath $file.FullName -Pattern $pattern -Encoding UTF8) {
+            [ordered]@{ file = $rel; line = $m.LineNumber; text = $m.Line }
+        }
+    })
+    [ordered]@{ pattern = $pattern; matches = $found }
+}
+
 Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,
-    Invoke-W365EditFile
+    Invoke-W365EditFile, Invoke-W365Search

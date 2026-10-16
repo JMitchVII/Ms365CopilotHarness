@@ -143,4 +143,25 @@ Describe 'Agent tools' {
             [System.IO.File]::ReadAllText($file) | Should -BeExactly "1`r`n2`r`nthree`r`n"
         }
     }
+
+    Context 'search' {
+        It 'AT-12 returns file, line and text for regex matches, scoped to the root' {
+            New-Item -ItemType Directory -Path (Join-Path $root 'src') | Out-Null
+            [System.IO.File]::WriteAllText((Join-Path $root 'src\a.ps1'), "function Get-Thing {`n}`nfunction Set-Thing {}")
+            [System.IO.File]::WriteAllText((Join-Path $root 'b.txt'), 'no match here')
+            $outside = Join-Path $TestDrive 'outside'
+            New-Item -ItemType Directory -Path $outside -Force | Out-Null
+            [System.IO.File]::WriteAllText((Join-Path $outside 'secret.ps1'), 'function Leak {}')
+            New-Item -ItemType Junction -Path (Join-Path $root 'link') -Target $outside | Out-Null
+
+            $data = Invoke-W365Search -Root $root -CallArgs @{ pattern = '^function \w+-Thing' }
+
+            @($data.matches).Count | Should -Be 2
+            $data.matches[0].file | Should -Be 'src\a.ps1'
+            $data.matches[0].line | Should -Be 1
+            $data.matches[0].text | Should -Be 'function Get-Thing {'
+            $data.matches[1].line | Should -Be 3
+            (Invoke-W365Search -Root $root -CallArgs @{ pattern = 'Leak' }).matches.Count | Should -Be 0
+        }
+    }
 }
