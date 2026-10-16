@@ -25,4 +25,19 @@ Describe 'Resolve-WorkspacePath' {
         { Resolve-WorkspacePath -Root $root -Path 'C:\Windows\win.ini' } | Should -Throw '*E_PATH_ESCAPE*'
         { Resolve-WorkspacePath -Root $root -Path '\\server\share\x.txt' } | Should -Throw '*E_PATH_ESCAPE*'
     }
+
+    It 'PG-05 allows an absolute path inside the root' {
+        $inside = Join-Path $root 'docs\c.md'
+        Resolve-WorkspacePath -Root $root -Path $inside | Should -Be $inside
+    }
+
+    It 'PG-06 rejects a sibling folder that shares the root as a prefix' {
+        $evil = "$root-evil\x.txt"
+        { Resolve-WorkspacePath -Root $root -Path $evil } | Should -Throw '*E_PATH_ESCAPE*'
+        { Resolve-WorkspacePath -Root $root -Path '..\ws-evil\x.txt' } | Should -Throw '*E_PATH_ESCAPE*'
+    }
+
+    It 'PG-08 accepts forward slashes and normalises them' {
+        Resolve-WorkspacePath -Root $root -Path 'src/lib/b.ps1' | Should -Be (Join-Path $root 'src\lib\b.ps1')
+    }
 }
