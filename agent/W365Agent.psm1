@@ -227,7 +227,14 @@ function Invoke-W365RunPs {
         $proc.StandardInput.Close()
         $stdout = $proc.StandardOutput.ReadToEndAsync()
         $stderr = $proc.StandardError.ReadToEndAsync()
-        $proc.WaitForExit()
+        $timeoutSec = [Math]::Max(1, [int](Get-CallArg $CallArgs 'timeoutSec' 120))
+        if (-not $proc.WaitForExit($timeoutSec * 1000)) {
+            # Kill the whole tree: children could otherwise keep running and hold our pipes open.
+            & taskkill.exe /T /F /PID $proc.Id 2>&1 | Out-Null
+            $proc.WaitForExit(5000) | Out-Null
+            Throw-W365 'E_TIMEOUT' "Command still running after $timeoutSec s and was stopped"
+        }
+        $proc.WaitForExit()  # flushes async output
         [ordered]@{ exitCode = $proc.ExitCode; stdout = $stdout.Result; stderr = $stderr.Result }
     } finally {
         $proc.Dispose()

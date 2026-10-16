@@ -192,5 +192,22 @@ Describe 'Agent tools' {
             $data = Invoke-W365RunPs -Root $root -CallArgs @{ command = '(Get-Location).Path' }
             $data.stdout.Trim() | Should -Be ([System.IO.Path]::GetFullPath($root))
         }
+
+        It 'AT-16 a command that runs past timeoutSec is killed (with its children) and throws E_TIMEOUT' {
+            $command = @'
+$PID | Set-Content child.pid
+$g = Start-Process powershell.exe -ArgumentList '-NoProfile -Command Start-Sleep 60' -NoNewWindow -PassThru
+$g.Id | Set-Content grandchild.pid
+Start-Sleep 60
+'@
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            { Invoke-W365RunPs -Root $root -CallArgs @{ command = $command; timeoutSec = 3 } } | Should -Throw 'E_TIMEOUT*'
+            $sw.Elapsed.TotalSeconds | Should -BeLessThan 15
+
+            foreach ($f in 'child.pid', 'grandchild.pid') {
+                $procId = [int](Get-Content (Join-Path $root $f))
+                Get-Process -Id $procId -ErrorAction SilentlyContinue | Should -BeNullOrEmpty -Because "$f should be killed"
+            }
+        }
     }
 }
