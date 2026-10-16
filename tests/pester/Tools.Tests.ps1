@@ -22,5 +22,9 @@ Describe 'Agent tools' {
             $data.entries[1].type | Should -Be 'file'
             $data.entries[1].size | Should -Be 5
         }
+
+        It 'AT-02 throws E_NOT_FOUND for a missing directory' {
+            { Invoke-W365ListDir -Root $root -CallArgs @{ path = 'nope' } } | Should -Throw 'E_NOT_FOUND*'
+        }
     }
 }

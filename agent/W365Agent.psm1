@@ -65,6 +65,7 @@ function Invoke-W365ListDir {
     param([Parameter(Mandatory)][string]$Root, $CallArgs)
     $rel = Get-CallArg $CallArgs 'path' '.'
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    if (-not (Test-Path -LiteralPath $full -PathType Container)) { Throw-W365 'E_NOT_FOUND' "No directory '$rel'" }
     $entries = @(Get-ChildItem -LiteralPath $full -Force | Sort-Object Name | ForEach-Object {
         if ($_.PSIsContainer) {
             [ordered]@{ name = $_.Name; type = 'dir' }
