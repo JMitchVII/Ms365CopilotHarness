@@ -75,7 +75,8 @@ function makePasteEvent(win, text) {
   return event;
 }
 
-const normalise = s => s.replace(/\s+/g, ' ').trim();
+// Lexical renders each line as its own <p>, so newlines don't survive in textContent: compare without whitespace.
+const normalise = s => s.replace(/\s+/g, '');
 
 // Pastes `text` into the composer and clicks send once the editor shows it. Never sends half a message.
 export async function injectAndSend(doc, text, { timeoutMs = 3000, pollMs = 25 } = {}) {
