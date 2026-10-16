@@ -42,3 +42,19 @@ test('RT-01 a read call in tiered mode is sent to the transport and its result f
   assert.deepEqual(transport.sent, [{ id: 't1', tool: 'list_dir', args: {} }]);
   assert.deepEqual(resultsIn(out.message), [{ id: 't1', ok: true, data: { echo: 'list_dir' } }]);
 });
+
+test('RT-02 a write call in tiered mode waits for approval before anything is sent', async () => {
+  let release;
+  const gate = new Promise(r => { release = r; });
+  const ui = fakeUi({ approve: () => gate });
+  const { router, transport } = setup({ ui });
+  const pending = router.handleReply({ conversation: 'c', text: call('w1', 'write_file', { path: 'a.txt', content: 'x' }) });
+  await new Promise(r => setImmediate(r));
+  assert.equal(ui.asked.length, 1);
+  assert.equal(ui.asked[0].id, 'w1');
+  assert.equal(transport.sent.length, 0, 'nothing sent before approval');
+  release(true);
+  const out = await pending;
+  assert.equal(transport.sent.length, 1);
+  assert.equal(resultsIn(out.message)[0].ok, true);
+});
