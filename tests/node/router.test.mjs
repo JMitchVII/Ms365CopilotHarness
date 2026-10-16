@@ -125,3 +125,27 @@ test('RT-08 task_done notifies the panel and stops auto-continuation', async () 
   assert.equal(out.done, true);
   assert.equal(out.message, null);
 });
+
+test('RT-09 loop guard: after maxAutoTurns automatic turns the router asks before going on', async () => {
+  let allow = false;
+  const ui = fakeUi({ confirm: () => allow });
+  const { router, transport } = setup({ ui, maxAutoTurns: 2 });
+  await router.handleReply({ conversation: 'c', text: call('a', 'list_dir') });
+  await router.handleReply({ conversation: 'c', text: call('b', 'list_dir') });
+
+  const third = await router.handleReply({ conversation: 'c', text: call('c', 'list_dir') });
+  assert.deepEqual(ui.events, [{ confirm: 2 }]);
+  assert.equal(third.paused, true);
+  assert.equal(third.message, null);
+  assert.equal(transport.sent.length, 2, 'the third call did not run');
+
+  allow = true;
+  const retry = await router.handleReply({ conversation: 'c', text: call('c', 'list_dir') });
+  assert.equal(transport.sent.length, 3, 'runs once the user says go on');
+  assert.ok(retry.message);
+
+  router.resetTurns();  // the user typed something themselves
+  ui.events.length = 0;
+  await router.handleReply({ conversation: 'c', text: call('d', 'list_dir') });
+  assert.deepEqual(ui.events, []);
+});

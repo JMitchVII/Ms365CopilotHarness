@@ -7,8 +7,11 @@ const denied = call => ({
   id: call.id, ok: false, error: { code: 'E_DENIED', message: 'The user declined this call. Ask them or try another way.' },
 });
 
-export function createRouter({ tools, transport, ui, ledger, getMode }) {
+export const DEFAULT_MAX_AUTO_TURNS = 25;
+
+export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTurns = DEFAULT_MAX_AUTO_TURNS }) {
   const tierOf = new Map(tools.map(t => [t.name, t.tier]));
+  let autoTurns = 0;  // replies answered automatically since the user last typed
 
   // Handles a tool the extension owns. Returns a result, or null when there is nothing to report.
   async function runUiTool(call, state) {
@@ -26,6 +29,11 @@ export function createRouter({ tools, transport, ui, ledger, getMode }) {
 
   async function handleReply({ conversation, messageId = '', text }) {
     const { calls, errors } = parseReply(text, tools);
+    if (calls.length + errors.length > 0 && autoTurns >= maxAutoTurns) {
+      // Loop guard: nothing runs (or is ledgered) until the user says to go on.
+      if (!(await ui.confirmContinue(autoTurns))) return { message: null, done: false, paused: true };
+      autoTurns = 0;
+    }
     const mode = await getMode();
     const state = { done: false };
     const results = [];
@@ -52,7 +60,12 @@ export function createRouter({ tools, transport, ui, ledger, getMode }) {
       await ledger.markDone(conversation, key);
       results.push(errorResult(error));
     }
+    if (results.length) autoTurns++;
     return { message: results.length ? formatResults(results) : null, done: state.done };
   }
-  return { handleReply };
+
+  return {
+    handleReply,
+    resetTurns() { autoTurns = 0; },
+  };
 }
