@@ -154,3 +154,35 @@ test('CA-12 a new chat has no feed until the first message: only the message box
   assert.deepEqual(checkPage(doc), { ok: true, missing: [] });
   assert.equal(readLatestReply(doc), null);
 });
+
+// Like Copilot's editor turning markdown into formatting: fences, headings and emphasis marks drop out of the text.
+async function markdownEditorPage() {
+  const { doc, input, log } = await idlePage();
+  const fresh = input.cloneNode(true);  // drop idlePage's plain-copy listener
+  input.replaceWith(fresh);
+  fresh.addEventListener('paste', e => {
+    const text = e.clipboardData.getData('text/plain');
+    log.push({ paste: text });
+    setTimeout(() => { fresh.textContent = text.replace(/[`#*]/g, ''); }, 10);
+  });
+  return { doc, input: fresh, log };
+}
+
+test('CA-13 sends when the editor shows the text minus markdown symbols', async () => {
+  const { doc, log } = await markdownEditorPage();
+  doc.querySelector(SELECTORS.sendButton).addEventListener('click', () => log.push({ click: true }));
+  const text = '## How to work\n\n```json\n{"w365":1,"id":"c0"}\n```\nUse **small** steps.';
+  assert.deepEqual(await injectAndSend(doc, text), { ok: true });
+  assert.ok(log.some(e => e.click));
+});
+
+test('CA-14 text that arrived but does not match is reported with how much arrived, and not sent', async () => {
+  const { doc, input, log } = await idlePage();
+  const fresh = input.cloneNode(true);
+  input.replaceWith(fresh);
+  fresh.addEventListener('paste', e => { setTimeout(() => { fresh.textContent = e.clipboardData.getData('text/plain').slice(0, 5); }, 10); });
+  const outcome = await injectAndSend(doc, 'abcdefghij', { timeoutMs: 100 });
+  assert.equal(outcome.ok, false);
+  assert.equal(outcome.reason, 'paste-mismatch (got 5 of 10 characters)');
+  assert.deepEqual(log.filter(e => e.click), []);
+});

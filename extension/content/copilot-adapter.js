@@ -83,12 +83,13 @@ function makePasteEvent(win, text) {
   return event;
 }
 
-// Lexical renders each line as its own <p>, so newlines don't survive in textContent: compare without whitespace.
-const normalise = s => s.replace(/\s+/g, '');
+// Lexical renders each line as its own <p>, so newlines don't survive in textContent, and Copilot's editor may turn
+// markdown into formatting (fences, headings, emphasis). Compare without whitespace and markdown symbols.
+const normalise = s => s.replace(/[\s`#*_~>]+/g, '');
 
 // Pastes `text` into the composer and clicks send once the editor shows it and the send button has appeared.
 // Never sends half a message.
-export async function injectAndSend(doc, text, { timeoutMs = 3000, pollMs = 25 } = {}) {
+export async function injectAndSend(doc, text, { timeoutMs = 5000, pollMs = 25 } = {}) {
   const input = doc.querySelector(SELECTORS.input);
   if (!input) return { ok: false, reason: 'selector-broken' };
   if (hasSecurityCheck(doc)) return { ok: false, reason: 'security-check' };
@@ -97,8 +98,10 @@ export async function injectAndSend(doc, text, { timeoutMs = 3000, pollMs = 25 }
   input.dispatchEvent(makePasteEvent(doc.defaultView, text));
   const want = normalise(text);
   let pasted = false;
+  let got = '';
   for (let waited = 0; waited <= timeoutMs; waited += pollMs) {
-    pasted = normalise(input.textContent) === want;
+    got = normalise(input.textContent);
+    pasted = got === want;
     const send = doc.querySelector(SELECTORS.sendButton);
     if (pasted && send) {
       send.click();
@@ -106,7 +109,9 @@ export async function injectAndSend(doc, text, { timeoutMs = 3000, pollMs = 25 }
     }
     await new Promise(r => setTimeout(r, pollMs));
   }
-  return { ok: false, reason: pasted ? 'selector-broken' : 'paste-ignored' };
+  if (pasted) return { ok: false, reason: 'selector-broken' };  // text is in, but no send button appeared
+  if (got) return { ok: false, reason: `paste-mismatch (got ${got.length} of ${want.length} characters)` };
+  return { ok: false, reason: 'paste-ignored' };
 }
 
 export function readLatestReply(doc) {
