@@ -154,8 +154,11 @@ function renderQueue() {
   document.getElementById('queue').innerHTML = queue.map(r => `<li>${escapeHtml(r.slice(0, 80))}...</li>`).join('');
 }
 
+// The ledger remembers call ids per conversation (here, always this page's path), so each load gets its own ids.
+const runTag = Math.random().toString(36).slice(2, 6);
+
 function loadQueue(text) {
-  queue = text.split(/^---$/m).map(s => s.trim()).filter(Boolean);
+  queue = text.replace(/"id":"([^"]+)"/g, `"id":"$1-${runTag}"`).split(/^---$/m).map(s => s.trim()).filter(Boolean);
   renderQueue();
 }
 
