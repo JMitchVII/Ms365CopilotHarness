@@ -64,4 +64,13 @@ Describe 'Agent tools' {
             (Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'b.txt' }).content | Should -BeExactly "1`t$text"
         }
     }
+
+    Context 'write_file' {
+        It 'AT-07 creates the file and any missing parent folders' {
+            $data = Invoke-W365WriteFile -Root $root -CallArgs @{ path = 'new\deep\f.txt'; content = "hi`n" }
+            [System.IO.File]::ReadAllText((Join-Path $root 'new\deep\f.txt')) | Should -BeExactly "hi`n"
+            $data.path | Should -Be 'new\deep\f.txt'
+            $data.bytes | Should -Be 3
+        }
+    }
 }

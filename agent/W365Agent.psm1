@@ -92,4 +92,23 @@ function Invoke-W365ReadFile {
     }
 }
 
-Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile
+$script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+
+# Writes text as UTF-8 without BOM, exactly as given (line endings untouched), creating parent folders.
+function Write-WorkspaceText {
+    param([string]$Full, [string]$Text)
+    $parent = Split-Path -Parent $Full
+    if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+    [System.IO.File]::WriteAllText($Full, $Text, $script:Utf8NoBom)
+}
+
+function Invoke-W365WriteFile {
+    param([Parameter(Mandatory)][string]$Root, $CallArgs)
+    $rel = Get-CallArg $CallArgs 'path'
+    $content = [string](Get-CallArg $CallArgs 'content' '')
+    $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    Write-WorkspaceText $full $content
+    [ordered]@{ path = $rel; bytes = $script:Utf8NoBom.GetByteCount($content) }
+}
+
+Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile
