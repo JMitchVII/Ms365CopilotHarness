@@ -33,4 +33,17 @@ Describe 'Read-NativeMessage' {
         $stream = [W365Test.ChunkyStream]::new((New-Frame $json))
         Read-NativeMessage -Stream $stream | Should -BeExactly $json
     }
+
+    It 'NF-03 returns $null on a clean end of stream (Chrome closed the port)' {
+        $stream = [System.IO.MemoryStream]::new((New-Frame '{"a":1}'))
+        Read-NativeMessage -Stream $stream | Out-Null
+        Read-NativeMessage -Stream $stream | Should -BeExactly $null
+        Read-NativeMessage -Stream ([System.IO.MemoryStream]::new()) | Should -BeExactly $null
+    }
+
+    It 'NF-04 throws a framing error when the header or body is cut short' {
+        $frame = New-Frame '{"kind":"call"}'
+        { Read-NativeMessage -Stream ([System.IO.MemoryStream]::new($frame[0..9])) } | Should -Throw '*E_TRANSPORT*'
+        { Read-NativeMessage -Stream ([System.IO.MemoryStream]::new($frame[0..1])) } | Should -Throw '*E_TRANSPORT*'
+    }
 }

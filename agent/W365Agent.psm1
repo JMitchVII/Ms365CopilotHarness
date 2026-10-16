@@ -319,10 +319,15 @@ function Read-StreamExactly {
 function Read-NativeMessage {
     param([Parameter(Mandatory)][System.IO.Stream]$Stream)
     $header = [byte[]]::new(4)
-    Read-StreamExactly $Stream $header | Out-Null
+    $got = Read-StreamExactly $Stream $header
+    if ($got -eq 0) { return $null }
+    if ($got -lt 4) { ThrowW365 'E_TRANSPORT' "Message header cut short ($got of 4 bytes)" }
     $length = [System.BitConverter]::ToInt32($header, 0)
+    # Chrome caps messages to a host at 64 MiB; anything else means the stream is out of step.
+    if ($length -lt 0 -or $length -gt 64MB) { ThrowW365 'E_TRANSPORT' "Bad message length $length" }
     $body = [byte[]]::new($length)
-    Read-StreamExactly $Stream $body | Out-Null
+    $got = Read-StreamExactly $Stream $body
+    if ($got -lt $length) { ThrowW365 'E_TRANSPORT' "Message body cut short ($got of $length bytes)" }
     [System.Text.Encoding]::UTF8.GetString($body)
 }
 
