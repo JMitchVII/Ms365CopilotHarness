@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatResult } from '../../extension/lib/formatter.js';
+import { formatResult, errorResult } from '../../extension/lib/formatter.js';
 import { findFences } from '../../extension/lib/parser.js';
 
 test('FM-01 formatResult(ok) produces a w365-result block with compact JSON', () => {
@@ -10,4 +10,16 @@ test('FM-01 formatResult(ok) produces a w365-result block with compact JSON', ()
   assert.equal(blocks.length, 1);
   assert.equal(blocks[0].lang, 'w365-result');
   assert.equal(blocks[0].body, JSON.stringify(result));
+});
+
+test('FM-02 error results include code and message; parse errors without an id get a block id', () => {
+  const withId = errorResult({ code: 'E_UNKNOWN_TOOL', id: 't9', block: 0, message: 'Unknown tool "x"' });
+  assert.deepEqual(withId, { id: 't9', ok: false, error: { code: 'E_UNKNOWN_TOOL', message: 'Unknown tool "x"' } });
+
+  const noId = errorResult({ code: 'E_PARSE', block: 2, message: 'bad json' });
+  assert.equal(noId.id, 'block-2');
+
+  const body = JSON.parse(findFences(formatResult(withId))[0].body);
+  assert.equal(body.error.code, 'E_UNKNOWN_TOOL');
+  assert.equal(body.error.message, 'Unknown tool "x"');
 });
