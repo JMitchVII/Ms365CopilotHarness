@@ -24,3 +24,26 @@ test('TN-01 connects to com.w365.harness and sends hello first', async () => {
   assert.equal(hello.root, 'C:\ws');
   assert.deepEqual(statuses, ['connected']);
 });
+
+const tick = () => new Promise(r => setImmediate(r));
+
+test('TN-02 send(call) posts a call envelope and resolves with the matching result', async () => {
+  const { host, transport } = setup();
+  const pending = transport.send({ id: 't1', tool: 'list_dir', args: {} });
+  await tick();
+  const port = host.ports[0];
+  assert.deepEqual(port.posted[1], { v: 1, kind: 'call', id: 't1', tool: 'list_dir', args: {} });
+  port.reply({ v: 1, kind: 'result', id: 't1', ok: true, data: { entries: [] } });
+  assert.deepEqual(await pending, { id: 't1', ok: true, data: { entries: [] } });
+});
+
+test('TN-03 out-of-order results resolve the right promises', async () => {
+  const { host, transport } = setup();
+  const a = transport.send({ id: 'a', tool: 'list_dir', args: {} });
+  const b = transport.send({ id: 'b', tool: 'list_dir', args: {} });
+  await tick();
+  host.ports[0].reply({ v: 1, kind: 'result', id: 'b', ok: true, data: 'B' });
+  host.ports[0].reply({ v: 1, kind: 'result', id: 'a', ok: true, data: 'A' });
+  assert.equal((await a).data, 'A');
+  assert.equal((await b).data, 'B');
+});
