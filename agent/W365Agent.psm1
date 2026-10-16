@@ -344,5 +344,29 @@ function Write-NativeMessage {
     $Stream.Flush()
 }
 
+# --- Host loop: framed envelopes in, framed envelopes out ---
+
+function ConvertTo-Envelope {
+    param($Result)
+    $envelope = [ordered]@{ v = 1; kind = 'result' }
+    foreach ($key in $Result.Keys) { $envelope[$key] = $Result[$key] }
+    ConvertTo-Json -InputObject $envelope -Depth 20 -Compress
+}
+
+# Serves one connection until the input stream ends.
+function Invoke-W365HostLoop {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][System.IO.Stream]$InStream,
+        [Parameter(Mandatory)][System.IO.Stream]$OutStream,
+        [string]$LogPath
+    )
+    while ($null -ne ($json = Read-NativeMessage -Stream $InStream)) {
+        $message = $json | ConvertFrom-Json
+        $result = Invoke-W365Call -Root $Root -Call $message
+        Write-NativeMessage -Stream $OutStream -Json (ConvertTo-Envelope $result)
+    }
+}
+
 # Public: Resolve-WorkspacePath, the native framing functions and everything named *-W365*.
 Export-ModuleMember -Function Resolve-WorkspacePath, *-W365*, *-NativeMessage
