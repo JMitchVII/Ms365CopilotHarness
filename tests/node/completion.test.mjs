@@ -27,3 +27,17 @@ test('CD-03 still busy (aria-busy / Stop generating) is not complete even if tex
   assert.deepEqual(d.update(snap(5100, 'Thinking')), null, 'stability restarts when busy clears');
   assert.deepEqual(d.update(snap(6100, 'Thinking')), { messageId: 'm1', text: 'Thinking' });
 });
+
+test('CD-04 a new Copilot message after completion starts a fresh cycle', () => {
+  const d = createCompletionDetector({ stableMs: 1000 });
+  d.update(snap(0, 'First'));
+  assert.ok(d.update(snap(1000, 'First')));
+  assert.equal(d.update(snap(1100, 'Second', { messageId: 'm2' })), null);
+  assert.deepEqual(d.update(snap(2100, 'Second', { messageId: 'm2' })), { messageId: 'm2', text: 'Second' });
+});
+
+test('CD-05 user messages (including our own pasted results) never trigger completion', () => {
+  const d = createCompletionDetector({ stableMs: 1000 });
+  d.update(snap(0, 'results...', { role: 'user', messageId: 'u1' }));
+  assert.equal(d.update(snap(5000, 'results...', { role: 'user', messageId: 'u1' })), null);
+});
