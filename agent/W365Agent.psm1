@@ -76,4 +76,13 @@ function Invoke-W365ListDir {
     [ordered]@{ path = $rel; entries = $entries }
 }
 
-Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir
+function Invoke-W365ReadFile {
+    param([Parameter(Mandatory)][string]$Root, $CallArgs)
+    $rel = Get-CallArg $CallArgs 'path'
+    $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    $lines = [System.IO.File]::ReadAllText($full) -split '\r?\n'
+    $numbered = for ($i = 0; $i -lt $lines.Count; $i++) { "$($i + 1)`t$($lines[$i])" }
+    [ordered]@{ path = $rel; content = ($numbered -join "`n"); totalLines = $lines.Count }
+}
+
+Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile

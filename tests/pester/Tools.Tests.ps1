@@ -27,4 +27,13 @@ Describe 'Agent tools' {
             { Invoke-W365ListDir -Root $root -CallArgs @{ path = 'nope' } } | Should -Throw 'E_NOT_FOUND*'
         }
     }
+
+    Context 'read_file' {
+        It 'AT-03 returns the content with line numbers' {
+            [System.IO.File]::WriteAllText((Join-Path $root 'a.txt'), "one`r`ntwo`nthree")
+            $data = Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'a.txt' }
+            $data.content | Should -Be "1`tone`n2`ttwo`n3`tthree"
+            $data.totalLines | Should -Be 3
+        }
+    }
 }
