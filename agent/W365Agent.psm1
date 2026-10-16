@@ -262,15 +262,29 @@ $script:Handlers = @{
     run_ps     = 'Invoke-W365RunPs'
 }
 
-# Runs one call ({id, tool, args}) and returns its result.
+function New-ErrorResult {
+    param($Id, [string]$Code, [string]$Message)
+    [ordered]@{ id = $Id; ok = $false; error = [ordered]@{ code = $Code; message = $Message } }
+}
+
+# Runs one call ({id, tool, args}) and returns its result. Never throws: every failure becomes ok:false.
 function Invoke-W365Call {
-    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)]$Call)
+    param([Parameter(Mandatory)][string]$Root, [AllowNull()]$Call)
+    if ($null -eq $Call) { return New-ErrorResult $null 'E_BAD_ARGS' 'Call must be an object with id, tool and args' }
+    $id = $Call.id
     $handler = $script:Handlers[[string]$Call.tool]
-    if (-not $handler) {
-        return [ordered]@{ id = $Call.id; ok = $false; error = [ordered]@{ code = 'E_UNKNOWN_TOOL'; message = "Unknown tool '$($Call.tool)'" } }
+    if (-not $handler) { return New-ErrorResult $id 'E_UNKNOWN_TOOL' "Unknown tool '$($Call.tool)'" }
+    try {
+        $data = & $handler -Root $Root -CallArgs $Call.args
+        [ordered]@{ id = $id; ok = $true; data = $data }
+    } catch {
+        $message = $_.Exception.Message
+        if ($message -match '(?s)^(E_[A-Z_]+): (.*)$') {
+            New-ErrorResult $id $Matches[1] $Matches[2]
+        } else {
+            New-ErrorResult $id 'E_INTERNAL' $message
+        }
     }
-    $data = & $handler -Root $Root -CallArgs $Call.args
-    [ordered]@{ id = $Call.id; ok = $true; data = $data }
 }
 
 Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,

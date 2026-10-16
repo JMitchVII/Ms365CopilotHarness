@@ -26,4 +26,21 @@ Describe 'Invoke-W365Call' {
         $result.error.code | Should -Be 'E_UNKNOWN_TOOL'
         $result.error.message | Should -BeLike '*format_disk*'
     }
+
+    It 'AD-03 never throws: coded errors keep their code, anything else is E_INTERNAL' {
+        $escape = '{"id":"t3","tool":"read_file","args":{"path":"..\\x.txt"}}' | ConvertFrom-Json
+        $r1 = Invoke-W365Call -Root $root -Call $escape
+        $r1.ok | Should -BeFalse
+        $r1.error.code | Should -Be 'E_PATH_ESCAPE'
+        $r1.error.message | Should -Not -BeLike 'E_PATH_ESCAPE:*'
+
+        Mock -ModuleName W365Agent Invoke-W365ListDir { throw 'disk on fire' }
+        $r2 = Invoke-W365Call -Root $root -Call ('{"id":"t4","tool":"list_dir","args":{}}' | ConvertFrom-Json)
+        $r2.ok | Should -BeFalse
+        $r2.error.code | Should -Be 'E_INTERNAL'
+        $r2.error.message | Should -BeLike '*disk on fire*'
+
+        { Invoke-W365Call -Root $root -Call $null } | Should -Not -Throw
+        (Invoke-W365Call -Root $root -Call $null).error.code | Should -Be 'E_BAD_ARGS'
+    }
 }
