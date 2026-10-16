@@ -187,13 +187,19 @@ function Invoke-W365Search {
     $pattern = [string](Get-CallArg $CallArgs 'pattern')
     $rootFull = Resolve-WorkspacePath -Root $Root -Path ''
     $dir = Resolve-WorkspacePath -Root $Root -Path (Get-CallArg $CallArgs 'path' '.')
-    $found = @(foreach ($file in Get-WorkspaceFiles $dir) {
+    $glob = Get-CallArg $CallArgs 'glob' '*'
+    $max = [Math]::Max(1, [int](Get-CallArg $CallArgs 'maxResults' 100))
+    $found = [System.Collections.Generic.List[object]]::new()
+    $truncated = $false
+    foreach ($file in Get-WorkspaceFiles $dir | Where-Object Name -like $glob) {
         $rel = $file.FullName.Substring($rootFull.Length + 1)
         foreach ($m in Select-String -LiteralPath $file.FullName -Pattern $pattern -Encoding UTF8) {
-            [ordered]@{ file = $rel; line = $m.LineNumber; text = $m.Line }
+            if ($found.Count -ge $max) { $truncated = $true; break }
+            $found.Add([ordered]@{ file = $rel; line = $m.LineNumber; text = $m.Line })
         }
-    })
-    [ordered]@{ pattern = $pattern; matches = $found }
+        if ($truncated) { break }
+    }
+    [ordered]@{ pattern = $pattern; matches = $found.ToArray(); truncated = $truncated }
 }
 
 Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,

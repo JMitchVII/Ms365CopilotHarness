@@ -163,5 +163,18 @@ Describe 'Agent tools' {
             $data.matches[1].line | Should -Be 3
             (Invoke-W365Search -Root $root -CallArgs @{ pattern = 'Leak' }).matches.Count | Should -Be 0
         }
+
+        It 'AT-13 respects a glob filter and a maxResults cap' {
+            [System.IO.File]::WriteAllText((Join-Path $root 'a.ps1'), (@('hit') * 5) -join "`n")
+            [System.IO.File]::WriteAllText((Join-Path $root 'b.txt'), 'hit')
+
+            $ps1 = Invoke-W365Search -Root $root -CallArgs @{ pattern = 'hit'; glob = '*.ps1' }
+            @($ps1.matches.file | Select-Object -Unique) | Should -Be @('a.ps1')
+            $ps1.truncated | Should -BeFalse
+
+            $capped = Invoke-W365Search -Root $root -CallArgs @{ pattern = 'hit'; maxResults = 3 }
+            @($capped.matches).Count | Should -Be 3
+            $capped.truncated | Should -BeTrue
+        }
     }
 }
