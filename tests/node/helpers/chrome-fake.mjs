@@ -118,3 +118,18 @@ export function createDirectoryHandle(name = 'shared') {
   }
   return dir;
 }
+
+// One end of a chrome.runtime Port, seen from the service worker. `posted` is what we sent;
+// `fromOther(msg)` simulates a message from the other side; `close()` simulates it going away.
+export function createPort(name = 'panel') {
+  const port = {
+    name,
+    posted: [],
+    onMessage: createEvent(),
+    onDisconnect: createEvent(),
+    postMessage(msg) { port.posted.push(structuredClone(msg)); },
+    fromOther(msg) { port.onMessage.emit(structuredClone(msg), port); },
+    close() { port.onDisconnect.emit(port); },
+  };
+  return port;
+}
