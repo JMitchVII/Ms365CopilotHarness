@@ -124,5 +124,23 @@ Describe 'Agent tools' {
             [System.IO.File]::ReadAllText($file) | Should -BeExactly 'y = 1; y = 2'
             $data.replacements | Should -Be 2
         }
+
+        It 'AT-11b edge cases: missing file, empty oldText, CRLF files, expectLines on newText' {
+            { Invoke-W365EditFile -Root $root -CallArgs @{ path = 'nope.txt'; oldText = 'a'; newText = 'b' } } |
+                Should -Throw 'E_NOT_FOUND*'
+
+            $file = Join-Path $root 'crlf.txt'
+            [System.IO.File]::WriteAllText($file, "one`r`ntwo`r`nthree`r`n")
+            { Invoke-W365EditFile -Root $root -CallArgs @{ path = 'crlf.txt'; oldText = ''; newText = 'b' } } |
+                Should -Throw 'E_BAD_ARGS*'
+
+            # Copilot sends LF; the file uses CRLF. Match anyway and keep the file's line endings.
+            Invoke-W365EditFile -Root $root -CallArgs @{ path = 'crlf.txt'; oldText = "one`ntwo"; newText = "1`n2" } | Out-Null
+            [System.IO.File]::ReadAllText($file) | Should -BeExactly "1`r`n2`r`nthree`r`n"
+
+            { Invoke-W365EditFile -Root $root -CallArgs @{ path = 'crlf.txt'; oldText = 'three'; newText = "3`n4"; expectLines = 1 } } |
+                Should -Throw 'E_CONTENT_MISMATCH*'
+            [System.IO.File]::ReadAllText($file) | Should -BeExactly "1`r`n2`r`nthree`r`n"
+        }
     }
 }

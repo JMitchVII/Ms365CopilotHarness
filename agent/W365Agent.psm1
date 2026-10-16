@@ -148,8 +148,17 @@ function Invoke-W365EditFile {
     $oldText = [string](Get-CallArg $CallArgs 'oldText')
     $newText = [string](Get-CallArg $CallArgs 'newText')
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    if ($oldText -eq '') { Throw-W365 'E_BAD_ARGS' 'oldText must not be empty' }
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Throw-W365 'E_NOT_FOUND' "No file '$rel'" }
+    Assert-ExpectLines $CallArgs $newText
     $text = [System.IO.File]::ReadAllText($full)
     $count = Measure-Occurrences $text $oldText
+    if ($count -eq 0 -and $text.Contains("`r`n") -and $oldText -match '(?<!\r)\n') {
+        # Copilot sends LF line endings; match a CRLF file by converting both sides.
+        $oldText = $oldText -replace '(?<!\r)\n', "`r`n"
+        $newText = $newText -replace '(?<!\r)\n', "`r`n"
+        $count = Measure-Occurrences $text $oldText
+    }
     if ($count -eq 0) { Throw-W365 'E_EDIT_NO_MATCH' "oldText was not found in '$rel'. Read the file and copy the text exactly." }
     if ($count -gt 1 -and -not [bool](Get-CallArg $CallArgs 'replaceAll' $false)) {
         Throw-W365 'E_EDIT_AMBIGUOUS' "oldText matches $count places in '$rel'. Include more context, or set replaceAll."
