@@ -1,0 +1,18 @@
+{
+  "note": "Shared call fixture: setup files are created in an empty workspace, then the call runs. expected.data is a subset match.",
+  "setup": {},
+  "call": {
+    "id": "c8",
+    "tool": "run_ps",
+    "args": {
+      "command": "Write-Output 'hi'"
+    }
+  },
+  "expected": {
+    "ok": true,
+    "data": {
+      "exitCode": 0,
+      "truncated": false
+    }
+  }
+}

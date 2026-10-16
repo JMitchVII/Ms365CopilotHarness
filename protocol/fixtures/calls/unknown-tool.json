@@ -1,0 +1,13 @@
+{
+  "note": "Shared call fixture: setup files are created in an empty workspace, then the call runs. expected.data is a subset match.",
+  "setup": {},
+  "call": {
+    "id": "c7",
+    "tool": "rm_rf",
+    "args": {}
+  },
+  "expected": {
+    "ok": false,
+    "code": "E_UNKNOWN_TOOL"
+  }
+}

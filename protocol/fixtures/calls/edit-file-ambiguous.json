@@ -1,0 +1,19 @@
+{
+  "note": "Shared call fixture: setup files are created in an empty workspace, then the call runs. expected.data is a subset match.",
+  "setup": {
+    "e.txt": "x x"
+  },
+  "call": {
+    "id": "c6",
+    "tool": "edit_file",
+    "args": {
+      "path": "e.txt",
+      "oldText": "x",
+      "newText": "y"
+    }
+  },
+  "expected": {
+    "ok": false,
+    "code": "E_EDIT_AMBIGUOUS"
+  }
+}

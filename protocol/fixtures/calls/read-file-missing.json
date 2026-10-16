@@ -1,0 +1,15 @@
+{
+  "note": "Shared call fixture: setup files are created in an empty workspace, then the call runs. expected.data is a subset match.",
+  "setup": {},
+  "call": {
+    "id": "c3",
+    "tool": "read_file",
+    "args": {
+      "path": "nope.txt"
+    }
+  },
+  "expected": {
+    "ok": false,
+    "code": "E_NOT_FOUND"
+  }
+}

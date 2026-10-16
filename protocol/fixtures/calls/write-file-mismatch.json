@@ -1,0 +1,17 @@
+{
+  "note": "Shared call fixture: setup files are created in an empty workspace, then the call runs. expected.data is a subset match.",
+  "setup": {},
+  "call": {
+    "id": "c5",
+    "tool": "write_file",
+    "args": {
+      "path": "a.txt",
+      "content": "one\ntwo",
+      "expectLines": 3
+    }
+  },
+  "expected": {
+    "ok": false,
+    "code": "E_CONTENT_MISMATCH"
+  }
+}

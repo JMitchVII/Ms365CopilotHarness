@@ -1,0 +1,28 @@
+{
+  "note": "Shared call fixture: setup files are created in an empty workspace, then the call runs. expected.data is a subset match.",
+  "setup": {
+    "a.txt": "x",
+    "sub/b.txt": "yy"
+  },
+  "call": {
+    "id": "c1",
+    "tool": "list_dir",
+    "args": {}
+  },
+  "expected": {
+    "ok": true,
+    "data": {
+      "entries": [
+        {
+          "name": "a.txt",
+          "type": "file",
+          "size": 1
+        },
+        {
+          "name": "sub",
+          "type": "dir"
+        }
+      ]
+    }
+  }
+}

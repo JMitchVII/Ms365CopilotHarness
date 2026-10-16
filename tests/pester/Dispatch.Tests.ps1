@@ -52,6 +52,36 @@ Describe 'Invoke-W365Call' {
     }
 }
 
+BeforeDiscovery {
+    $callFixtures = Get-ChildItem (Join-Path $PSScriptRoot '..\..\protocol\fixtures\calls') -Filter *.json |
+        ForEach-Object { @{ Name = $_.BaseName; Fixture = (Get-Content -Raw $_.FullName | ConvertFrom-Json) } }
+}
+
+Describe 'Shared call fixtures' {
+    It 'AD-06 <Name> gives the expected result shape' -ForEach $callFixtures {
+        $root = Join-Path $TestDrive "fx-$Name"
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        foreach ($p in $Fixture.setup.PSObject.Properties) {
+            $file = Join-Path $root $p.Name
+            New-Item -ItemType Directory -Path (Split-Path $file) -Force | Out-Null
+            [System.IO.File]::WriteAllText($file, $p.Value)
+        }
+
+        # Round-trip through JSON, as the result would travel to the extension.
+        $result = ConvertTo-Json -InputObject (Invoke-W365Call -Root $root -Call $Fixture.call) -Depth 10 | ConvertFrom-Json
+
+        $result.id | Should -Be $Fixture.call.id
+        $result.ok | Should -Be $Fixture.expected.ok
+        if ($Fixture.expected.PSObject.Properties['code']) { $result.error.code | Should -Be $Fixture.expected.code }
+        if ($Fixture.expected.PSObject.Properties['data']) {
+            foreach ($p in $Fixture.expected.data.PSObject.Properties) {
+                ConvertTo-Json -InputObject $result.data.($p.Name) -Depth 10 -Compress |
+                    Should -Be (ConvertTo-Json -InputObject $p.Value -Depth 10 -Compress) -Because "data.$($p.Name)"
+            }
+        }
+    }
+}
+
 Describe 'Get-W365Hello' {
     It 'AD-05 returns version, root and exactly the non-ui tools from protocol/tools.json' {
         $root = Join-Path $TestDrive 'ws'
