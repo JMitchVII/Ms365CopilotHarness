@@ -109,3 +109,9 @@ test('PN-09 loop-guard prompt and task-done summary', () => {
   panel.handle({ type: 'task-done', summary: 'All tests pass' });
   assert.equal(panel.view().done, 'All tests pass');
 });
+
+test('PN-10 the stylesheet keeps [hidden] elements hidden even when a class sets display', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const css = await readFile(new URL('../../extension/panel/panel.css', import.meta.url), 'utf8');
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+});

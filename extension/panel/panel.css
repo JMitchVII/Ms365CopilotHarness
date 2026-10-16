@@ -8,6 +8,7 @@
     --accent: #7aa2ff; --danger: #ff6b6b; --ok: #6fcf75; --warn: #f0b350; }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; padding: 12px; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
 header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 h1 { font-size: 15px; margin: 0; }
