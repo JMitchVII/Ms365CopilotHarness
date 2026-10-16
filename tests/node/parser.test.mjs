@@ -10,3 +10,15 @@ test('PR-03 plain prose with no fences yields no calls', () => {
   const reply = 'Sure, I can help with that.\nFirst I will look at the folder structure.';
   assert.deepEqual(parseReply(reply), { calls: [], errors: [] });
 });
+
+const fence = (lang, body) => '```' + lang + '\n' + body + '\n```';
+
+test('PR-04 single w365 block with valid JSON yields one call', () => {
+  const reply = 'Reading it now.\n' +
+    fence('w365', '{"w365":1,"id":"t1","tool":"read_file","args":{"path":"README.md"}}') +
+    '\nWaiting for the result.';
+  assert.deepEqual(parseReply(reply), {
+    calls: [{ id: 't1', tool: 'read_file', args: { path: 'README.md' } }],
+    errors: [],
+  });
+});
