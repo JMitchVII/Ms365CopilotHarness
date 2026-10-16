@@ -49,8 +49,9 @@ function textOf(node, state) {
 
 const tidy = text => text.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 
-// Checks the elements the harness can't work without (the send button only appears once the editor has text). A non-empty `missing` means Copilot's layout changed
-// and SELECTORS needs updating; the panel shows "selector broken".
+// Checks the elements the harness can't work without. A non-empty `missing` means Copilot's layout changed
+// and SELECTORS needs updating; the panel shows "selector broken". The send button isn't checked: Copilot only
+// shows it once the editor has text.
 export function checkPage(doc) {
   const missing = ['feed', 'input'].filter(key => !doc.querySelector(SELECTORS[key]));
   return { ok: missing.length === 0, missing };

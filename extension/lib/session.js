@@ -2,7 +2,8 @@
 // approvals -> side panel and back. Kept free of chrome.* so it can be tested; background.js supplies the I/O.
 import { createRouter } from './router.js';
 
-export function createSession({ tools, transport, ledger, getMode, bootstrap, injectInto, retryDelayMs = 1000, maxAutoTurns }) {
+export function createSession({ tools, transport, ledger, getMode, bootstrap, injectInto, findCopilotTab = async () => null,
+  retryDelayMs = 1000, maxAutoTurns }) {
   const tierOf = new Map(tools.map(t => [t.name, t.tier]));
   let panel = null;
   let status = 'unknown';
@@ -69,6 +70,8 @@ export function createSession({ tools, transport, ledger, getMode, bootstrap, in
   }
 
   async function startSession() {
+    // The noted tab is lost when Chrome restarts the service worker, so look for one.
+    copilotTab ??= await findCopilotTab();
     if (copilotTab == null) return setStatus('no-copilot-tab');
     router.resetTurns();
     await paste(copilotTab, bootstrap);

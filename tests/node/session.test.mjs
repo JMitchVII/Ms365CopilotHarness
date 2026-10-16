@@ -104,3 +104,21 @@ test('WR-06 pasting retries while Copilot is busy, and stops with a status on a 
   assert.equal(blocked.injected.length, 1);
   assert.ok(panel.posted.some(m => m.type === 'status' && m.status === 'security-check'));
 });
+
+test('WR-07 Start session finds the Copilot tab itself when none was noted (service worker restarted)', async () => {
+  const injected = [];
+  const session = createSession({
+    tools: TOOLS,
+    transport: { async send() {}, cancel() {} },
+    ledger: createLedger(createStorageArea()),
+    getMode: async () => 'tiered',
+    bootstrap: 'BOOTSTRAP TEXT',
+    injectInto: async (tabId, text) => { injected.push({ tabId, text }); return { ok: true }; },
+    findCopilotTab: async () => 12,
+  });
+  const panel = createPort();
+  session.attachPanel(panel);
+  panel.fromOther({ type: 'start-session' });
+  await until(() => injected.length);
+  assert.deepEqual(injected, [{ tabId: 12, text: 'BOOTSTRAP TEXT' }]);
+});
