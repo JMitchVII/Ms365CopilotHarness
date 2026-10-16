@@ -266,6 +266,9 @@ $script:Handlers = @{
 function Invoke-W365Call {
     param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)]$Call)
     $handler = $script:Handlers[[string]$Call.tool]
+    if (-not $handler) {
+        return [ordered]@{ id = $Call.id; ok = $false; error = [ordered]@{ code = 'E_UNKNOWN_TOOL'; message = "Unknown tool '$($Call.tool)'" } }
+    }
     $data = & $handler -Root $Root -CallArgs $Call.args
     [ordered]@{ id = $Call.id; ok = $true; data = $data }
 }

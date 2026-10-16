@@ -18,4 +18,12 @@ Describe 'Invoke-W365Call' {
         $result.ok | Should -BeTrue
         $result.data.content | Should -Be "1`thello"
     }
+
+    It 'AD-02 unknown tool returns ok:false with E_UNKNOWN_TOOL' {
+        $call = '{"id":"t2","tool":"format_disk","args":{}}' | ConvertFrom-Json
+        $result = Invoke-W365Call -Root $root -Call $call
+        $result.ok | Should -BeFalse
+        $result.error.code | Should -Be 'E_UNKNOWN_TOOL'
+        $result.error.message | Should -BeLike '*format_disk*'
+    }
 }
