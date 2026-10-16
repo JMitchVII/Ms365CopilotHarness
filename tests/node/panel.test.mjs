@@ -97,3 +97,15 @@ test('PN-08 the transport choice (native / file) defaults to native and persists
   await again.load();
   assert.equal(again.view().transport, 'file');
 });
+
+test('PN-09 loop-guard prompt and task-done summary', () => {
+  const { panel, sent } = setup();
+  panel.handle({ type: 'confirm-continue', requestId: 'k1', turns: 25 });
+  assert.deepEqual(panel.view().confirm, { requestId: 'k1', turns: 25 });
+  panel.continueRun(true);
+  assert.deepEqual(sent, [{ type: 'continue', requestId: 'k1', go: true }]);
+  assert.equal(panel.view().confirm, null);
+
+  panel.handle({ type: 'task-done', summary: 'All tests pass' });
+  assert.equal(panel.view().done, 'All tests pass');
+});

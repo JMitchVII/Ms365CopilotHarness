@@ -7,7 +7,8 @@ const TRANSPORT_KEY = 'transport';
 const LOG_LIMIT = 200;
 
 export function createPanelState({ storage, send }) {
-  const state = { mode: 'tiered', transport: 'native', status: 'unknown', approvals: [], questions: [], log: [] };
+  const state = { mode: 'tiered', transport: 'native', status: 'unknown', approvals: [], questions: [], log: [],
+    confirm: null, done: null };
 
   function answerApproval(requestId, approved) {
     state.approvals = state.approvals.filter(a => a.requestId !== requestId);
@@ -40,6 +41,12 @@ export function createPanelState({ storage, send }) {
         case 'status':
           state.status = event.status;
           break;
+        case 'confirm-continue':
+          state.confirm = { requestId: event.requestId, turns: event.turns };
+          break;
+        case 'task-done':
+          state.done = event.summary;
+          break;
         case 'activity':
           state.log.push({ id: event.call.id, tool: event.call.tool, ok: event.ok, summary: event.summary });
           if (state.log.length > LOG_LIMIT) state.log.splice(0, state.log.length - LOG_LIMIT);
@@ -55,10 +62,17 @@ export function createPanelState({ storage, send }) {
       state.questions = state.questions.filter(q => q.requestId !== requestId);
       send({ type: 'answer', requestId, text });
     },
+    // Loop guard: carry on with automatic turns, or not.
+    continueRun(go) {
+      if (!state.confirm) return;
+      send({ type: 'continue', requestId: state.confirm.requestId, go });
+      state.confirm = null;
+    },
     // Kill switch. The service worker cancels the router's pending work; prompts here are now stale.
     stop() {
       state.approvals = [];
       state.questions = [];
+      state.confirm = null;
       send({ type: 'stop' });
     },
     view: () => structuredClone(state),
