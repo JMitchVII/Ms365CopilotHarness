@@ -411,5 +411,20 @@ function Invoke-W365HostLoop {
     }
 }
 
+# --- File transport: <shared>inbox*.json in, <shared>outbox*.json out ---
+
+# Processes every call currently in the inbox, oldest first.
+function Invoke-W365FileLoopOnce {
+    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$SharedDir, [string]$LogPath)
+    $inbox = Join-Path $SharedDir 'inbox'
+    $outbox = Join-Path $SharedDir 'outbox'
+    foreach ($file in Get-ChildItem -LiteralPath $inbox -Filter '*.json' -File) {
+        $json = [System.IO.File]::ReadAllText($file.FullName)
+        $reply = Get-HostReply $Root $json $LogPath
+        [System.IO.File]::WriteAllText((Join-Path $outbox $file.Name), $reply, $script:Utf8NoBom)
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+}
+
 # Public: Resolve-WorkspacePath, the native framing functions and everything named *-W365*.
 Export-ModuleMember -Function Resolve-WorkspacePath, *-W365*, *-NativeMessage
