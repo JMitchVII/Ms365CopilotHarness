@@ -75,3 +75,17 @@ test('PR-10 missing required arg yields E_BAD_ARGS naming the arg', () => {
   assert.equal(errors[0].id, 't10');
   assert.match(errors[0].message, /\bpath\b/);
 });
+
+test('PR-11 wrong arg type yields E_BAD_ARGS', () => {
+  const cases = [
+    '{"w365":1,"id":"a","tool":"read_file","args":{"path":5}}',
+    '{"w365":1,"id":"b","tool":"read_file","args":{"path":"x","limit":"10"}}',
+    '{"w365":1,"id":"c","tool":"read_file","args":{"path":"x","limit":1.5}}',
+    '{"w365":1,"id":"d","tool":"edit_file","args":{"path":"x","oldText":"a","newText":"b","replaceAll":"yes"}}',
+  ];
+  for (const body of cases) {
+    const { calls, errors } = parseReply(fence('w365', body), TOOLS);
+    assert.deepEqual(calls, [], body);
+    assert.equal(errors[0]?.code, 'E_BAD_ARGS', body);
+  }
+});

@@ -27,10 +27,20 @@ export function findFences(text) {
 // Returns a description of the first problem with args, or null if they match the tool's schema.
 function checkArgs(spec, args) {
   for (const [name, arg] of Object.entries(spec.args)) {
-    if (arg.required && !(name in args)) return `missing required arg "${name}"`;
+    if (!(name in args)) {
+      if (arg.required) return `missing required arg "${name}"`;
+      continue;
+    }
+    if (!TYPE_CHECKS[arg.type](args[name])) return `arg "${name}" must be ${arg.type}`;
   }
   return null;
 }
+
+const TYPE_CHECKS = {
+  string: v => typeof v === 'string',
+  integer: v => Number.isInteger(v),
+  boolean: v => typeof v === 'boolean',
+};
 
 // tools: the `tools` array from protocol/tools.json. When given, tool names and args are validated.
 export function parseReply(text, tools) {
