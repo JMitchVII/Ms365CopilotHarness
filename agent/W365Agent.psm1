@@ -8,7 +8,7 @@ function Resolve-WorkspacePath {
         [Parameter(Mandatory)][AllowEmptyString()][string]$Path
     )
     $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd('\')
-    $full = [System.IO.Path]::GetFullPath((Join-Path $rootFull $Path))
+    $full = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($rootFull, $Path))
     $inside = $full -eq $rootFull -or $full.StartsWith($rootFull + '\', [System.StringComparison]::OrdinalIgnoreCase)
     if (-not $inside) { Throw-W365 'E_PATH_ESCAPE' "Path '$Path' is outside the workspace" }
     $full

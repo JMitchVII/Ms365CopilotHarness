@@ -20,4 +20,9 @@ Describe 'Resolve-WorkspacePath' {
         { Resolve-WorkspacePath -Root $root -Path '..\outside.txt' } | Should -Throw '*E_PATH_ESCAPE*'
         { Resolve-WorkspacePath -Root $root -Path 'src\..\..\outside.txt' } | Should -Throw '*E_PATH_ESCAPE*'
     }
+
+    It 'PG-04 rejects an absolute path outside the root' {
+        { Resolve-WorkspacePath -Root $root -Path 'C:\Windows\win.ini' } | Should -Throw '*E_PATH_ESCAPE*'
+        { Resolve-WorkspacePath -Root $root -Path '\\server\share\x.txt' } | Should -Throw '*E_PATH_ESCAPE*'
+    }
 }
