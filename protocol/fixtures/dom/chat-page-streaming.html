@@ -1,0 +1,111 @@
+<!--
+  Sanitised extract of a real m365.cloud.microsoft/chat page captured 2026-10-16 while a reply was streaming.
+  Kept: data-testid / role / aria-* / data-* attributes, fai-* and scriptor-* classes, element nesting.
+  Removed: hashed CSS classes, styles, SVGs, scripts, nav/sidebar, account data, hydration JSON.
+  Message 0 = completed exchange with a JSON code block (has Copy button).
+  Message 1 = exchange still streaming (aria-busy="true", markdown-reply aria-hidden="true").
+-->
+<div role="feed" aria-label="Chat conversation" class="fui-Virtualizer-Scroll-View-Dynamic__container">
+
+  <div data-virtualizer-index="0" data-virtualizer-key="e60b2ce1a09fd3ad14771612679d44a4" data-rendered-index="0">
+    <div class="m365-chat-llm-web-ui-chat-chat-message" data-testid="m365-chat-llm-web-ui-chat-message" data-message-index="0">
+      <div data-testid="chatQuestion">
+        <div role="article" class="fai-UserMessage fai-BebopUserMessage">
+          <h5 class="fai-UserMessage__accessibleHeading">You said: </h5>
+          <div class="fai-UserMessage__message fai-BebopUserMessage__message">
+            <div dir="auto" data-testid="chatOutput">Can you give me a quick JSON snippet for an adaptive card?</div>
+          </div>
+        </div>
+      </div>
+      <div id="chatMessageResponse-e60b2ce1a09fd3ad14771612679d44a4" data-testid="copilot-message-div">
+        <div data-testid="copilot-message-reply-div">
+          <div role="article" class="fai-CopilotMessage">
+            <h6 class="fai-CopilotMessage__accessibleHeading">Copilot said: </h6>
+            <div class="fai-CopilotMessage__content">
+              <div data-testid="loading-message">
+                <div dir="auto" aria-hidden="false" data-testid="markdown-reply" data-message-id="c68365a9-53f0-477a-88af-fed8aaef0b33">
+                  <div>
+                    <p>Here's a minimal Adaptive Card:</p>
+                    <div role="group" aria-label="Code Preview">
+                      <div tabindex="-1" data-theme="dark" class="scriptor-component-code-block scriptor-codeblock-virtualized">
+                        <div role="status" aria-live="polite" aria-atomic="true"></div>
+                        <div data-testid="one-copilot-code-identity"><span>JSON</span></div>
+                        <div class="fui-Overflow">
+                          <div data-overflow-item=""><button type="button" id="copy-button" aria-label="Copy code"></button></div>
+                          <div><button type="button" id="export-options-button" aria-label="More options" aria-haspopup="menu"></button></div>
+                        </div>
+                        <div data-virtualized-code-find-root="true">
+                          <div role="textbox" aria-readonly="true" aria-multiline="true" aria-label="Code editor">
+                            <div data-line-number="1"></div><div data-line-index="0">{</div>
+                            <div data-line-number="2"></div><div data-line-index="1">  "type": "AdaptiveCard",</div>
+                            <div data-line-number="3"></div><div data-line-index="2" data-line-empty="true">&nbsp;</div>
+                            <div data-line-number="4"></div><div data-line-index="3">  "version": "1.5"</div>
+                            <div data-line-number="5"></div><div data-line-index="4">}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <p>Tell me the target platform and I can tailor it.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div role="toolbar" class="fai-CopilotMessage__actions">
+            <button type="button" aria-label="Copy Response" data-testid="CopyButtonTestId"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-virtualizer-index="1" data-virtualizer-key="c1d7e643-1607-442e-9017-8649808f7f8f" data-rendered-index="1">
+    <div class="m365-chat-llm-web-ui-chat-chat-message chat-message-scroll-target-index" data-testid="m365-chat-llm-web-ui-chat-message" data-message-index="1">
+      <div data-testid="chatQuestion">
+        <div role="article" class="fai-UserMessage fai-BebopUserMessage">
+          <h5 class="fai-UserMessage__accessibleHeading">You said: </h5>
+          <div class="fai-UserMessage__message fai-BebopUserMessage__message">
+            <div dir="auto" data-testid="chatOutput">Can you tell me some of the design guidelines for adaptive cards?
+</div>
+          </div>
+        </div>
+      </div>
+      <div id="chatMessageResponse-c1d7e643-1607-442e-9017-8649808f7f8f" data-testid="copilot-message-div">
+        <div data-testid="copilot-message-reply-div">
+          <div role="article" class="fai-CopilotMessage" aria-busy="true">
+            <h6 class="fai-CopilotMessage__accessibleHeading">Copilot said: </h6>
+            <div class="fai-CopilotMessage__content">
+              <div data-testid="loading-message">
+                <div dir="auto" aria-hidden="true" data-testid="markdown-reply" data-message-id="39a4c0cc-b54e-4aeb-997a-f818aa1c3471" data-message-type="Chat">
+                  <div>
+                    <p>A few of the most important Adaptive Card design guidelines are:</p>
+                    <h3>1. Keep the card focused</h3>
+                    <p>A card should support a single task or decision.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div data-test-id="chat-input-wrapper" id="m365-chat-input-shared-container">
+  <div class="fai-BebopLiteChatInput">
+    <div class="fai-BebopLiteChatInput__inputWrapper">
+      <span class="fai-EditorInput fai-BebopLiteChatInput__editor">
+        <span role="textbox" contenteditable="true" tabindex="0" aria-label="Message Copilot" id="m365-chat-editor-target-element" data-lexical-editor="true"><p><br></p></span>
+        <span id="chat-input-placeholder" class="fai-EditorInput__placeholderValue">Message Copilot</span>
+      </span>
+      <span class="fai-BebopLiteChatInput__actions">
+        <button type="submit" aria-label="Stop generating" class="fai-SendButton fai-BebopLiteChatInput__send"></button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Present in the capture: Cloudflare Turnstile challenge dialog (free/consumer accounts). -->
+<div role="dialog" aria-modal="true" aria-label="Security check required"><span>Verification required</span></div>

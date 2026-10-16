@@ -1,0 +1,63 @@
+Really rough agentic development with 365 Copilot
+-------------------------------------------------
+Background:  I have a very constrained environment where the 
+only approved use of LLMs is via M365 co-pilot. 
+
+It can generate code but it doesn't provide anywhere near the 
+context strength and flexibility of a proper code harness. 
+
+By crafting a special prompt, browser extension for chromium
+local windows process / agent  and utilizing chrome's filesystem
+and native messaging capabilities; 
+
+I want to create a rudimentary development harness that can be
+used within the constraints of my environment. 
+
+
+
+Components are as follows:
+
+PROMPT
+
+Co-pilot is given a prompt (custom instructions)
+instructing it on how to 
+do turn by turn conversations
+with the powershell agent that
+will be waiting to recieve it's
+runtime commands.
+
+Includes rules about when
+the extension is to prompt
+the user for input.
+
+COPILOT
+
+Will respond with Powershell tool
+calls.  questions for the user
+and any other development
+output.
+
+BROWSER EXTENSION
+
+A Chromium extension with 
+Folder access authorization
+Will pipe every relevant tool
+call to the waiting powershell
+agent via either a shared file or
+native messaging.
+
+Has a window that takes
+user input commands and 
+relays requests when instructed
+by Copilot.
+
+POWERSHELL LOOP / AGENT
+Listens for native messages
+from the browser extension
+or just reads the command file.
+
+Executes the instructions 
+provided and pipes the output back.
+to the extension.
+
+
