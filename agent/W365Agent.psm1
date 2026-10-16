@@ -303,14 +303,26 @@ function Get-W365Hello {
 
 # --- Native messaging framing: 4-byte little-endian length + UTF-8 JSON ---
 
+# Fills $Buffer from the stream; returns how many bytes were read (less than asked only at end of stream).
+function Read-StreamExactly {
+    param([System.IO.Stream]$Stream, [byte[]]$Buffer)
+    $total = 0
+    while ($total -lt $Buffer.Length) {
+        $n = $Stream.Read($Buffer, $total, $Buffer.Length - $total)
+        if ($n -le 0) { break }
+        $total += $n
+    }
+    $total
+}
+
 # Reads one message and returns its JSON text.
 function Read-NativeMessage {
     param([Parameter(Mandatory)][System.IO.Stream]$Stream)
     $header = [byte[]]::new(4)
-    $Stream.Read($header, 0, 4) | Out-Null
+    Read-StreamExactly $Stream $header | Out-Null
     $length = [System.BitConverter]::ToInt32($header, 0)
     $body = [byte[]]::new($length)
-    $Stream.Read($body, 0, $length) | Out-Null
+    Read-StreamExactly $Stream $body | Out-Null
     [System.Text.Encoding]::UTF8.GetString($body)
 }
 
