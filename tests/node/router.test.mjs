@@ -58,3 +58,13 @@ test('RT-02 a write call in tiered mode waits for approval before anything is se
   assert.equal(transport.sent.length, 1);
   assert.equal(resultsIn(out.message)[0].ok, true);
 });
+
+test('RT-03 a denied call is not sent and returns E_DENIED so Copilot can adapt', async () => {
+  const { router, transport } = setup({ ui: fakeUi({ approve: () => false }) });
+  const out = await router.handleReply({ conversation: 'c', text: call('x1', 'run_ps', { command: 'rm -r *' }) });
+  assert.equal(transport.sent.length, 0);
+  const [r] = resultsIn(out.message);
+  assert.equal(r.id, 'x1');
+  assert.equal(r.ok, false);
+  assert.equal(r.error.code, 'E_DENIED');
+});
