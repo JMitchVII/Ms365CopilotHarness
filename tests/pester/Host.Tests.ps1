@@ -56,4 +56,33 @@ Describe 'Invoke-W365HostLoop' {
         @($messages[1..3].id) | Should -Be @('a', 'b', 'c')
         $messages[2].data.content | Should -Be "1`t1"
     }
+
+    It 'NH-04 a malformed frame or an oversized result gives an error result and the loop carries on' {
+        $big = 'y' * (2MB)
+        [System.IO.File]::WriteAllText((Join-Path $root 'big.txt'), $big)
+        $in = New-InputStream @(
+            '{"v":1,"kind":"call", this is not json'
+            '{"v":1,"kind":"call","id":"big","tool":"read_file","args":{"path":"big.txt"}}'
+            '{"v":1,"kind":"call","id":"ok","tool":"list_dir","args":{}}'
+        )
+        $out = [System.IO.MemoryStream]::new()
+
+        Invoke-W365HostLoop -Root $root -InStream $in -OutStream $out -LogPath $log
+
+        $messages = @(Read-AllMessages $out)
+        $messages.Count | Should -Be 3
+        $messages[0].ok | Should -BeFalse
+        $messages[0].error.code | Should -Be 'E_PARSE'
+        $messages[1].id | Should -Be 'big'
+        $messages[1].error.code | Should -Be 'E_TOO_LARGE'
+        $messages[2].id | Should -Be 'ok'
+        $messages[2].ok | Should -BeTrue
+    }
+
+    It 'NH-05 errors go to the log file, not the output stream' {
+        $in = New-InputStream '{broken'
+        $out = [System.IO.MemoryStream]::new()
+        Invoke-W365HostLoop -Root $root -InStream $in -OutStream $out -LogPath $log
+        Get-Content $log -Raw | Should -BeLike '*E_PARSE*'
+    }
 }

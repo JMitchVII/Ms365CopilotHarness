@@ -354,7 +354,34 @@ function ConvertTo-Envelope {
     ConvertTo-Json -InputObject $envelope -Depth 20 -Compress
 }
 
-# Serves one connection until the input stream ends.
+function Write-HostLog {
+    param([string]$LogPath, [string]$Text)
+    if (-not $LogPath) { return }
+    try {
+        $dir = Split-Path -Parent $LogPath
+        if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        [System.IO.File]::AppendAllText($LogPath, "$(Get-Date -Format o) $Text`r`n", $script:Utf8NoBom)
+    } catch { }  # logging must never break the loop
+}
+
+# Turns one incoming JSON message into the JSON reply. Never throws.
+function Get-HostReply {
+    param([string]$Root, [string]$Json, [string]$LogPath)
+    try {
+        $message = $Json | ConvertFrom-Json
+    } catch {
+        Write-HostLog $LogPath "E_PARSE bad frame: $($_.Exception.Message)"
+        return ConvertTo-Envelope (New-ErrorResult $null 'E_PARSE' "Message is not valid JSON: $($_.Exception.Message)")
+    }
+    if ((Get-CallArg $message 'kind') -eq 'hello') {
+        return ConvertTo-Json -InputObject (Get-W365Hello -Root $Root) -Depth 5 -Compress
+    }
+    $result = Invoke-W365Call -Root $Root -Call $message
+    if (-not $result.ok) { Write-HostLog $LogPath "$($result.id) $($result.error.code) $($result.error.message)" }
+    ConvertTo-Envelope $result
+}
+
+# Serves one connection until the input stream ends. Only framed messages are written to OutStream.
 function Invoke-W365HostLoop {
     param(
         [Parameter(Mandatory)][string]$Root,
@@ -362,13 +389,25 @@ function Invoke-W365HostLoop {
         [Parameter(Mandatory)][System.IO.Stream]$OutStream,
         [string]$LogPath
     )
-    while ($null -ne ($json = Read-NativeMessage -Stream $InStream)) {
-        $message = $json | ConvertFrom-Json
-        switch (Get-CallArg $message 'kind') {
-            'hello' { $reply = ConvertTo-Json -InputObject (Get-W365Hello -Root $Root) -Depth 5 -Compress }
-            default { $reply = ConvertTo-Envelope (Invoke-W365Call -Root $Root -Call $message) }
+    while ($true) {
+        try {
+            $json = Read-NativeMessage -Stream $InStream
+        } catch {
+            Write-HostLog $LogPath "Stopping: $($_.Exception.Message)"
+            return
         }
-        Write-NativeMessage -Stream $OutStream -Json $reply
+        if ($null -eq $json) { return }
+        $reply = Get-HostReply $Root $json $LogPath
+        try {
+            Write-NativeMessage -Stream $OutStream -Json $reply
+        } catch {
+            $id = $null
+            try { $id = ($reply | ConvertFrom-Json).id } catch { }
+            Write-HostLog $LogPath "$id $($_.Exception.Message)"
+            $code, $text = $_.Exception.Message -split ': ', 2
+            if ($code -notmatch '^E_[A-Z_]+$') { $code = 'E_INTERNAL'; $text = $_.Exception.Message }
+            Write-NativeMessage -Stream $OutStream -Json (ConvertTo-Envelope (New-ErrorResult $id $code "$text. Ask for less (offset/limit, narrower command)."))
+        }
     }
 }
 
