@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 $script:AgentVersion = '0.1.0'
 
 # Errors carry their protocol code as a prefix: "E_CODE: message". The dispatcher turns them into results.
-function Throw-W365 {
+function ThrowW365 {
     param([string]$Code, [string]$Message)
     throw "${Code}: $Message"
 }
@@ -19,7 +19,7 @@ function Get-FullPath {
     try {
         [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($Base, $Path)).TrimEnd('\')
     } catch {
-        Throw-W365 'E_BAD_ARGS' "Invalid path '$Path'"
+        ThrowW365 'E_BAD_ARGS' "Invalid path '$Path'"
     }
 }
 
@@ -31,7 +31,7 @@ function Resolve-WorkspacePath {
     )
     $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd('\')
     $full = Get-FullPath $rootFull $Path
-    if (-not (Test-InsideRoot $rootFull $full)) { Throw-W365 'E_PATH_ESCAPE' "Path '$Path' is outside the workspace" }
+    if (-not (Test-InsideRoot $rootFull $full)) { ThrowW365 'E_PATH_ESCAPE' "Path '$Path' is outside the workspace" }
 
     # Junctions and symlinks inside the root could lead outside it: check every existing segment.
     $current = $rootFull
@@ -41,9 +41,9 @@ function Resolve-WorkspacePath {
         if (-not $item) { break }
         if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
             $target = @($item.Target)[0]
-            if (-not $target) { Throw-W365 'E_PATH_ESCAPE' "Path '$Path' goes through a link that can't be resolved" }
+            if (-not $target) { ThrowW365 'E_PATH_ESCAPE' "Path '$Path' goes through a link that can't be resolved" }
             if (-not (Test-InsideRoot $rootFull (Get-FullPath (Split-Path $current) $target))) {
-                Throw-W365 'E_PATH_ESCAPE' "Path '$Path' goes through a link outside the workspace"
+                ThrowW365 'E_PATH_ESCAPE' "Path '$Path' goes through a link outside the workspace"
             }
         }
     }
@@ -67,7 +67,7 @@ function Invoke-W365ListDir {
     param([Parameter(Mandatory)][string]$Root, $CallArgs)
     $rel = Get-CallArg $CallArgs 'path' '.'
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
-    if (-not (Test-Path -LiteralPath $full -PathType Container)) { Throw-W365 'E_NOT_FOUND' "No directory '$rel'" }
+    if (-not (Test-Path -LiteralPath $full -PathType Container)) { ThrowW365 'E_NOT_FOUND' "No directory '$rel'" }
     $entries = @(Get-ChildItem -LiteralPath $full -Force | Sort-Object Name | ForEach-Object {
         if ($_.PSIsContainer) {
             [ordered]@{ name = $_.Name; type = 'dir' }
@@ -82,7 +82,7 @@ function Invoke-W365ReadFile {
     param([Parameter(Mandatory)][string]$Root, $CallArgs)
     $rel = Get-CallArg $CallArgs 'path'
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
-    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Throw-W365 'E_NOT_FOUND' "No file '$rel'" }
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { ThrowW365 'E_NOT_FOUND' "No file '$rel'" }
     $offset =[Math]::Max(1, [int](Get-CallArg $CallArgs 'offset' 1))
     $limit = [Math]::Max(1, [int](Get-CallArg $CallArgs 'limit' 2000))
     $lines = [System.IO.File]::ReadAllText($full) -split '\r?\n'
@@ -119,7 +119,7 @@ function Assert-ExpectLines {
     if ($null -eq $expect) { return }
     $actual = Measure-Lines $Text
     if ($actual -ne [int]$expect) {
-        Throw-W365 'E_CONTENT_MISMATCH' "Content has $actual lines but expectLines is $expect. Resend the full content."
+        ThrowW365 'E_CONTENT_MISMATCH' "Content has $actual lines but expectLines is $expect. Resend the full content."
     }
 }
 
@@ -150,8 +150,8 @@ function Invoke-W365EditFile {
     $oldText = [string](Get-CallArg $CallArgs 'oldText')
     $newText = [string](Get-CallArg $CallArgs 'newText')
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
-    if ($oldText -eq '') { Throw-W365 'E_BAD_ARGS' 'oldText must not be empty' }
-    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Throw-W365 'E_NOT_FOUND' "No file '$rel'" }
+    if ($oldText -eq '') { ThrowW365 'E_BAD_ARGS' 'oldText must not be empty' }
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { ThrowW365 'E_NOT_FOUND' "No file '$rel'" }
     Assert-ExpectLines $CallArgs $newText
     $text = [System.IO.File]::ReadAllText($full)
     $count = Measure-Occurrences $text $oldText
@@ -161,9 +161,9 @@ function Invoke-W365EditFile {
         $newText = $newText -replace '(?<!\r)\n', "`r`n"
         $count = Measure-Occurrences $text $oldText
     }
-    if ($count -eq 0) { Throw-W365 'E_EDIT_NO_MATCH' "oldText was not found in '$rel'. Read the file and copy the text exactly." }
+    if ($count -eq 0) { ThrowW365 'E_EDIT_NO_MATCH' "oldText was not found in '$rel'. Read the file and copy the text exactly." }
     if ($count -gt 1 -and -not [bool](Get-CallArg $CallArgs 'replaceAll' $false)) {
-        Throw-W365 'E_EDIT_AMBIGUOUS' "oldText matches $count places in '$rel'. Include more context, or set replaceAll."
+        ThrowW365 'E_EDIT_AMBIGUOUS' "oldText matches $count places in '$rel'. Include more context, or set replaceAll."
     }
     Write-WorkspaceText $full $text.Replace($oldText, $newText)
     [ordered]@{ path = $rel; replacements = $count }
@@ -244,7 +244,7 @@ function Invoke-W365RunPs {
             # Kill the whole tree: children could otherwise keep running and hold our pipes open.
             & taskkill.exe /T /F /PID $proc.Id 2>&1 | Out-Null
             $proc.WaitForExit(5000) | Out-Null
-            Throw-W365 'E_TIMEOUT' "Command still running after $timeoutSec s and was stopped"
+            ThrowW365 'E_TIMEOUT' "Command still running after $timeoutSec s and was stopped"
         }
         $proc.WaitForExit()  # flushes async output
         $out, $outCut = Limit-Output $stdout.Result $MaxOutputChars
