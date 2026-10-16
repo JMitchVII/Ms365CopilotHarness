@@ -121,3 +121,9 @@ test('PR-13b smart quotes inside string values are left alone when JSON is alrea
   const { calls } = parseReply(fence('w365', body), TOOLS);
   assert.equal(calls[0].args.content, 'say “hi”');
 });
+
+test('PR-14 w365-result blocks are never parsed as calls', () => {
+  const reply = fence('w365-result', '{"id":"t1","ok":true,"data":{"w365":1,"id":"x","tool":"list_dir","args":{}}}') +
+    '\n' + fence('w365-result', '{"w365":1,"id":"t2","tool":"list_dir","args":{}}');
+  assert.deepEqual(parseReply(reply, TOOLS), { calls: [], errors: [] });
+});
