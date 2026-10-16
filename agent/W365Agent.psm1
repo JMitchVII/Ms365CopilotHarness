@@ -202,5 +202,37 @@ function Invoke-W365Search {
     [ordered]@{ pattern = $pattern; matches = $found.ToArray(); truncated = $truncated }
 }
 
+# Runs a command in a separate powershell.exe so it can't touch the agent's stdout (the native messaging pipe).
+# -EncodedCommand is used because the machine's ExecutionPolicy doesn't block it.
+function Invoke-W365RunPs {
+    param([Parameter(Mandatory)][string]$Root, $CallArgs)
+    $command = [string](Get-CallArg $CallArgs 'command')
+    $rootFull = Resolve-WorkspacePath -Root $Root -Path ''
+    $script = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; `$ProgressPreference = 'SilentlyContinue'`n" + $command
+    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($script))
+
+    $psi = [System.Diagnostics.ProcessStartInfo]::new('powershell.exe',
+        "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $encoded")
+    $psi.WorkingDirectory = $rootFull
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    try {
+        $proc.StandardInput.Close()
+        $stdout = $proc.StandardOutput.ReadToEndAsync()
+        $stderr = $proc.StandardError.ReadToEndAsync()
+        $proc.WaitForExit()
+        [ordered]@{ exitCode = $proc.ExitCode; stdout = $stdout.Result; stderr = $stderr.Result }
+    } finally {
+        $proc.Dispose()
+    }
+}
+
 Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,
-    Invoke-W365EditFile, Invoke-W365Search
+    Invoke-W365EditFile, Invoke-W365Search, Invoke-W365RunPs

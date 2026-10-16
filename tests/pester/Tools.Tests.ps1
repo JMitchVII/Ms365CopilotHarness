@@ -177,4 +177,15 @@ Describe 'Agent tools' {
             $capped.truncated | Should -BeTrue
         }
     }
+
+    Context 'run_ps' {
+        It 'AT-14 returns stdout, stderr and exitCode' {
+            $data = Invoke-W365RunPs -Root $root -CallArgs @{
+                command = "Write-Output 'out line'; [Console]::Error.WriteLine('err line'); exit 3"
+            }
+            $data.stdout.Trim() | Should -Be 'out line'
+            $data.stderr.Trim() | Should -Be 'err line'
+            $data.exitCode | Should -Be 3
+        }
+    }
 }
