@@ -77,7 +77,7 @@ function el(tag, props = {}, ...children) {
 function render() {
   const view = panel.view();
   $('status').textContent = view.status;
-  $('status').className = `status ${STATUS_CLASS[view.status] ?? ''}`;
+  $('status').className = `status ${STATUS_CLASS[view.status.split(/[: ]/)[0]] ?? ''}`;  // e.g. 'selector-broken: input'
   document.querySelectorAll('input[name="mode"]').forEach(input => { input.checked = input.value === view.mode; });
   $('transport').value = view.transport;
   $('file-controls').hidden = view.transport !== 'file';

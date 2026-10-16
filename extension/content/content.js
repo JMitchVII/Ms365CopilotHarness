@@ -26,8 +26,9 @@
   }
 
   function tick() {
+    const page = adapter.checkPage(document);
     if (adapter.hasSecurityCheck(document)) setStatus('security-check');
-    else if (!adapter.checkPage(document).ok) setStatus('selector-broken');
+    else if (!page.ok) setStatus(`selector-broken: ${page.missing.join(', ')}`);
     else setStatus('page-ok');
 
     // A new turn we didn't paste means the user typed: the run of automatic turns is over.
