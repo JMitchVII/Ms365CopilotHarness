@@ -187,5 +187,10 @@ Describe 'Agent tools' {
             $data.stderr.Trim() | Should -Be 'err line'
             $data.exitCode | Should -Be 3
         }
+
+        It 'AT-15 runs with the workspace root as the current directory' {
+            $data = Invoke-W365RunPs -Root $root -CallArgs @{ command = '(Get-Location).Path' }
+            $data.stdout.Trim() | Should -Be ([System.IO.Path]::GetFullPath($root))
+        }
     }
 }
