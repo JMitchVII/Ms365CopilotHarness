@@ -187,3 +187,12 @@ test('RT-11 a transport failure becomes an E_TRANSPORT result and the panel show
   assert.match(r.error.message, /Native host has exited/);
   assert.deepEqual(ui.statuses, ['disconnected']);
 });
+
+test('RT-12 every result is reported to the panel activity log', async () => {
+  const activity = [];
+  const ui = fakeUi({ approve: () => false });
+  ui.activity = (c, r) => activity.push([c.id, r.ok]);
+  const { router } = setup({ ui });
+  await router.handleReply({ conversation: 'c', text: call('r1', 'list_dir') + call('w1', 'write_file', { path: 'a', content: '' }) });
+  assert.deepEqual(activity, [['r1', true], ['w1', false]]);
+});

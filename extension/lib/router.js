@@ -56,6 +56,10 @@ export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTur
     const mode = await getMode();
     const state = { done: false };
     const results = [];
+    const report = (call, result) => {
+      results.push(result);
+      ui.activity?.(call, result);
+    };
     for (const call of calls) {
       if (await ledger.has(conversation, call.id)) continue;
       // Marked before running: a call must never run twice, even if we crash part way.
@@ -64,14 +68,14 @@ export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTur
       if (decision === 'ui') {
         const result = await orStop(runUiTool(call, state));
         if (result === STOPPED) return stoppedResult;
-        if (result) results.push(result);
+        if (result) report(call, result);
         continue;
       }
       if (decision === 'ask') {
         const approved = await orStop(ui.requestApproval(call));
         if (approved === STOPPED) return stoppedResult;
         if (!approved) {
-          results.push(denied(call));
+          report(call, denied(call));
           continue;
         }
       }
@@ -80,7 +84,7 @@ export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTur
         transport.cancel(call.id);
         return stoppedResult;
       }
-      results.push(result);
+      report(call, result);
     }
     for (const error of errors) {
       // Errors without a call id are keyed by reply + block so they are reported once per reply.
