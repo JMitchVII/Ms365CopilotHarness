@@ -19,3 +19,11 @@ test('CD-02 text stable for the window and not busy is complete, reported once',
   assert.deepEqual(d.update(snap(1000, 'Done.')), { messageId: 'm1', text: 'Done.' });
   assert.equal(d.update(snap(2000, 'Done.')), null, 'only once');
 });
+
+test('CD-03 still busy (aria-busy / Stop generating) is not complete even if text is stable', () => {
+  const d = createCompletionDetector({ stableMs: 1000 });
+  d.update(snap(0, 'Thinking', { busy: true }));
+  assert.equal(d.update(snap(5000, 'Thinking', { busy: true })), null);
+  assert.deepEqual(d.update(snap(5100, 'Thinking')), null, 'stability restarts when busy clears');
+  assert.deepEqual(d.update(snap(6100, 'Thinking')), { messageId: 'm1', text: 'Thinking' });
+});

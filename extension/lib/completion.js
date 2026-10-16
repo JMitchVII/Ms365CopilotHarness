@@ -6,8 +6,8 @@ export function createCompletionDetector({ stableMs = 1500 } = {}) {
   let since = 0;
   let reported = false;
   return {
-    update({ at, messageId, text: current }) {
-      if (current !== text) {
+    update({ at, messageId, text: current, busy }) {
+      if (busy || current !== text) {
         text = current;
         since = at;
         return null;
