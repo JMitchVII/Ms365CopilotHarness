@@ -271,7 +271,7 @@ Layout: `<shared>/inbox/<id>.json` (ext → agent), `<shared>/outbox/<id>.json` 
 - E2E-02 Same with write call in tiered mode → approval → file created on disk. **Passed 2026-10-16.**
 - E2E-03 Same flows over file transport. **On hold (2026-10-16):** the user dropped the use case; code and unit tests stay.
 - E2E-04 Real Copilot, tiered: "list the workspace and summarise README" completes with no manual typing. **Passed 2026-10-16.**
-- E2E-05 Real Copilot: create a script + Pester test, run it via `run_ps`, iterate until green, `task_done`.
+- E2E-05 Real Copilot: create a script + Pester test, run it via `run_ps`, iterate until green, `task_done`. **Passed 2026-10-16.**
 
 ---
 
