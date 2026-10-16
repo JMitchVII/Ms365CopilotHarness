@@ -35,5 +35,18 @@ Describe 'Agent tools' {
             $data.content | Should -Be "1`tone`n2`ttwo`n3`tthree"
             $data.totalLines | Should -Be 3
         }
+
+        It 'AT-04 offset (1-based) and limit return that slice plus totalLines' {
+            [System.IO.File]::WriteAllText((Join-Path $root 'n.txt'), ((1..10 | ForEach-Object { "L$_" }) -join "`n"))
+            $data = Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'n.txt'; offset = 4; limit = 3 }
+            $data.content | Should -Be "4`tL4`n5`tL5`n6`tL6"
+            $data.startLine | Should -Be 4
+            $data.endLine | Should -Be 6
+            $data.totalLines | Should -Be 10
+
+            $tail = Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'n.txt'; offset = 9; limit = 50 }
+            $tail.content | Should -Be "9`tL9`n10`tL10"
+            $tail.endLine | Should -Be 10
+        }
     }
 }

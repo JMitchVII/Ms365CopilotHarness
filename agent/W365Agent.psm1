@@ -80,9 +80,15 @@ function Invoke-W365ReadFile {
     param([Parameter(Mandatory)][string]$Root, $CallArgs)
     $rel = Get-CallArg $CallArgs 'path'
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    $offset = [Math]::Max(1, [int](Get-CallArg $CallArgs 'offset' 1))
+    $limit = [Math]::Max(1, [int](Get-CallArg $CallArgs 'limit' 2000))
     $lines = [System.IO.File]::ReadAllText($full) -split '\r?\n'
-    $numbered = for ($i = 0; $i -lt $lines.Count; $i++) { "$($i + 1)`t$($lines[$i])" }
-    [ordered]@{ path = $rel; content = ($numbered -join "`n"); totalLines = $lines.Count }
+    $end = [Math]::Min($lines.Count, $offset + $limit - 1)
+    $numbered = for ($i = $offset; $i -le $end; $i++) { "$i`t$($lines[$i - 1])" }
+    [ordered]@{
+        path = $rel; content = (@($numbered) -join "`n")
+        startLine = $offset; endLine = $end; totalLines = $lines.Count
+    }
 }
 
 Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile
