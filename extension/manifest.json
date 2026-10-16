@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "W365 Copilot Harness",
+  "version": "0.1.0",
+  "description": "Runs tool calls from M365 Copilot replies through a local PowerShell agent.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAplH07Mb+A/cOUvta1G+lEzAWY2X+SdP8fzmF8CoSZs6rSUdfPb9hPBtvHoqqMK0C0pNUJyGHpfBPyOOikh2TowhSre3+gKZIaPwV5pMTh2aiCn+MoTkgG0Ma6czRoTgqlGgytKlFh8gK0IlG9Eb1CzqNi7cz5QbDxtPoEikkFT3806Z2oQ/Z8DtMVv4D99ZAucOpAajnM8ultkbHDXf17KDfwL76To0Ju/PbqOn0M8yzR91Pc7f1owCKgOuLQoWQh7zbL+8RVQG8uM2F7qahbaRNYxQ6iV1y8u+oxBdUmqDCl0o1TJaeCCS6gGX5sL112EytP7F9Im3ERHj3p4GGvwIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "nativeMessaging",
+    "sidePanel",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://m365.cloud.microsoft/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "panel/panel.html"
+  },
+  "action": {
+    "default_title": "W365 Copilot Harness"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://m365.cloud.microsoft/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/*.js",
+        "lib/*.js"
+      ],
+      "matches": [
+        "https://m365.cloud.microsoft/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ]
+    }
+  ]
+}

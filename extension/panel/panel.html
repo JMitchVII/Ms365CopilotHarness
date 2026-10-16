@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>W365 Harness</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header>
+    <h1>W365 Harness</h1>
+    <span id="status" class="status">unknown</span>
+  </header>
+
+  <section class="controls">
+    <fieldset id="mode">
+      <legend>Approvals</legend>
+      <label><input type="radio" name="mode" value="fullAuto"> Fully auto</label>
+      <label><input type="radio" name="mode" value="tiered"> Tiered</label>
+      <label><input type="radio" name="mode" value="approveAll"> Approve everything</label>
+    </fieldset>
+    <label class="row">Transport
+      <select id="transport">
+        <option value="native">Native messaging</option>
+        <option value="file">Shared folder</option>
+      </select>
+    </label>
+    <div id="file-controls" class="row" hidden>
+      <button id="pick-folder" type="button">Choose shared folder</button>
+      <button id="grant-folder" type="button" hidden>Grant folder access</button>
+      <span id="folder-name"></span>
+    </div>
+    <div class="row">
+      <button id="start" type="button">Start session</button>
+      <button id="stop" type="button" class="danger">Stop</button>
+    </div>
+  </section>
+
+  <section id="done" class="notice" hidden></section>
+  <section id="confirm" class="card" hidden></section>
+  <section id="questions"></section>
+  <section id="approvals"></section>
+
+  <section>
+    <h2>Activity</h2>
+    <ol id="log" class="log"></ol>
+  </section>
+
+  <script type="module" src="panel.js"></script>
+</body>
+</html>
