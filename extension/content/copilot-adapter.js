@@ -22,19 +22,24 @@ export function readCodeBlock(block) {
     .sort((a, b) => a.index - b.index);
   const lines = rows.map(({ row }) =>
     row.getAttribute('data-line-empty') === 'true' ? '' : row.textContent.replace(/ /g, ' '));
-  return { lang, text: lines.join('\n'), incomplete: false };
+  // The block is virtualized: rows scrolled out of view may not be in the DOM. A gap in the indexes means
+  // we can't trust the text. (Rows missing from the very end can't be detected this way.)
+  const incomplete = rows.some(({ index }, i) => index !== i);
+  return { lang, text: lines.join('\n'), incomplete };
 }
 
-// Plain text of a rendered reply, keeping paragraph breaks. Code blocks come back as fenced blocks.
-function textOf(node) {
+// Plain text of a rendered reply, keeping paragraph breaks. Code blocks come back as fenced blocks;
+// any incomplete block sets state.incomplete.
+function textOf(node, state) {
   if (node.nodeType === 3) return node.nodeValue;
   if (node.nodeType !== 1) return '';
   if (node.matches(SELECTORS.codeBlock)) {
-    const { lang, text } = readCodeBlock(node);
+    const { lang, text, incomplete } = readCodeBlock(node);
+    if (incomplete) state.incomplete = true;
     return `\n${FENCE}${lang}\n${text}\n${FENCE}\n`;
   }
   if (node.tagName === 'BR') return '\n';
-  const inner = [...node.childNodes].map(textOf).join('');
+  const inner = [...node.childNodes].map(child => textOf(child, state)).join('');
   return BLOCK_TAGS.has(node.tagName) ? `\n${inner}\n` : inner;
 }
 
@@ -49,5 +54,7 @@ export function readLatestReply(doc) {
   const busy = article?.getAttribute('aria-busy') === 'true'
     || reply.getAttribute('aria-hidden') === 'true'
     || !!doc.querySelector(SELECTORS.stopButton);
-  return { messageId: reply.getAttribute('data-message-id'), role: 'assistant', text: tidy(textOf(reply)), busy };
+  const state = { incomplete: false };
+  const text = tidy(textOf(reply, state));
+  return { messageId: reply.getAttribute('data-message-id'), role: 'assistant', text, busy, incomplete: state.incomplete };
 }

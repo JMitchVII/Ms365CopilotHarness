@@ -34,3 +34,15 @@ test('CA-02 code blocks are rebuilt from their line rows, with the label as the 
   const reply = readLatestReply(chat);
   assert.ok(reply.text.includes('```json\n{\n  "type": "AdaptiveCard",\n\n  "version": "1.5"\n}\n```'), reply.text);
 });
+
+test('CA-07 a virtualized code block with missing line rows is flagged incomplete', async () => {
+  const doc = await fixture('codeblock-html-preview.html');
+  const block = doc.querySelector('.scriptor-component-code-block');
+  block.querySelector('[data-line-index="20"]').remove();
+  assert.equal(readCodeBlock(block).incomplete, true);
+
+  const chat = await fixture('chat-page-streaming.html');
+  chat.querySelector('[data-message-index="1"]').remove();
+  chat.querySelector('[data-line-index="1"]').remove();
+  assert.equal(readLatestReply(chat).incomplete, true, 'the reply as a whole is incomplete');
+});
