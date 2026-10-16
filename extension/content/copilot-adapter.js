@@ -51,9 +51,9 @@ const tidy = text => text.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace
 
 // Checks the elements the harness can't work without. A non-empty `missing` means Copilot's layout changed
 // and SELECTORS needs updating; the panel shows "selector broken". The send button isn't checked: Copilot only
-// shows it once the editor has text.
+// shows it once the editor has text, and a new chat has no feed until the first message.
 export function checkPage(doc) {
-  const missing = ['feed', 'input'].filter(key => !doc.querySelector(SELECTORS[key]));
+  const missing = ['input'].filter(key => !doc.querySelector(SELECTORS[key]));
   return { ok: missing.length === 0, missing };
 }
 

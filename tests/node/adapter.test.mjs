@@ -50,7 +50,7 @@ test('CA-07 a virtualized code block with missing line rows is flagged incomplet
 test('CA-03 when the layout changes, reading returns null and checkPage names what is missing', async () => {
   const doc = new JSDOM('<main><p>Copilot was redesigned</p></main>').window.document;
   assert.equal(readLatestReply(doc), null);
-  assert.deepEqual(checkPage(doc), { ok: false, missing: ['feed', 'input'] });
+  assert.deepEqual(checkPage(doc), { ok: false, missing: ['input'] });
 
   const real = await fixture('chat-page-streaming.html');
   assert.deepEqual(checkPage(real), { ok: true, missing: [] });
@@ -146,4 +146,11 @@ test('CA-11 a security check dialog that is in the page but not shown does not b
   dialog.checkVisibility = () => true;
   assert.equal(hasSecurityCheck(doc), true, 'shown');
   assert.deepEqual(log, []);
+});
+
+test('CA-12 a new chat has no feed until the first message: only the message box is required', async () => {
+  const doc = new JSDOM('<main><h1>Hi, what can I help you with?</h1>'
+    + '<span role="textbox" contenteditable="true" id="m365-chat-editor-target-element"></span></main>').window.document;
+  assert.deepEqual(checkPage(doc), { ok: true, missing: [] });
+  assert.equal(readLatestReply(doc), null);
 });
