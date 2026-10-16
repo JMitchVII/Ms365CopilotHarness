@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { parseReply } from '../../extension/lib/parser.js';
+import { parseReply, findFences } from '../../extension/lib/parser.js';
 
 test('PR-02 parseReply("") returns no calls and no errors', () => {
   assert.deepEqual(parseReply(''), { calls: [], errors: [] });
@@ -126,4 +126,37 @@ test('PR-14 w365-result blocks are never parsed as calls', () => {
   const reply = fence('w365-result', '{"id":"t1","ok":true,"data":{"w365":1,"id":"x","tool":"list_dir","args":{}}}') +
     '\n' + fence('w365-result', '{"w365":1,"id":"t2","tool":"list_dir","args":{}}');
   assert.deepEqual(parseReply(reply, TOOLS), { calls: [], errors: [] });
+});
+
+test('PR-16 a call is found by its w365 marker inside a block with any label', () => {
+  const call = '{"w365":1,"id":"m","tool":"list_dir","args":{}}';
+  for (const lang of ['json', 'JSON', 'plain text', 'Plain Text', '']) {
+    const { calls, errors } = parseReply(fence(lang, call), TOOLS);
+    assert.deepEqual(errors, [], lang);
+    assert.deepEqual(calls.map(c => c.id), ['m'], `label "${lang}"`);
+  }
+});
+
+test('PR-16b broken JSON that mentions the w365 marker in any block is E_PARSE', () => {
+  const { calls, errors } = parseReply(fence('json', '{"w365":1,"id":"m",'), TOOLS);
+  assert.deepEqual(calls, []);
+  assert.equal(errors[0]?.code, 'E_PARSE');
+});
+
+test('PR-17 JSON without the w365 marker is ignored outside w365 blocks', () => {
+  const reply = fence('json', '{"id":"x","tool":"list_dir","args":{}}') + '\n' + fence('json', '{ not json');
+  assert.deepEqual(parseReply(reply, TOOLS), { calls: [], errors: [] });
+});
+
+test('PR-17b a w365 block without the marker is E_BAD_ARGS asking for it', () => {
+  const { calls, errors } = parseReply(fence('w365', '{"id":"x","tool":"list_dir","args":{}}'), TOOLS);
+  assert.deepEqual(calls, []);
+  assert.equal(errors[0]?.code, 'E_BAD_ARGS');
+  assert.match(errors[0].message, /"w365":1/);
+});
+
+test('PR-13c fence labels are trimmed and lower-cased; closing fence needs as many ticks', () => {
+  assert.deepEqual(findFences('```  W365   \nbody\n```  '), [{ lang: 'w365', body: 'body' }]);
+  assert.deepEqual(findFences('```plain text\na\n```'), [{ lang: 'plain text', body: 'a' }]);
+  assert.deepEqual(findFences('````md\n```\ninner\n```\n````'), [{ lang: 'md', body: '```\ninner\n```' }]);
 });

@@ -1,6 +1,7 @@
 // Extracts w365 tool calls from the text of a Copilot reply.
 
-const OPEN_FENCE = /^(`{3,})\s*([\w-]*)\s*$/;
+const OPEN_FENCE = /^(`{3,})\s*([^`]*?)\s*$/;
+const MARKER_HINT = /["“”]w365["“”]\s*:/;
 
 // Splits text into fenced blocks: [{ lang, body }], in document order.
 export function findFences(text) {
@@ -61,12 +62,23 @@ export function parseReply(text, tools) {
   const errors = [];
   const seenIds = new Set();
   findFences(text).forEach((block, index) => {
-    if (block.lang !== 'w365') return;
+    // Copilot's rendered label may not be the fence tag we asked for, so any block can hold a call;
+    // the "w365":1 marker is what identifies one. Our own result blocks are never calls.
+    if (block.lang === 'w365-result') return;
+    const tagged = block.lang === 'w365';
     let obj;
     try {
       obj = parseLenient(block.body);
     } catch (e) {
-      errors.push({ code: 'E_PARSE', block: index, message: `Block ${index} is not valid JSON: ${e.message}` });
+      if (tagged || MARKER_HINT.test(block.body)) {
+        errors.push({ code: 'E_PARSE', block: index, message: `Block ${index} is not valid JSON: ${e.message}` });
+      }
+      return;
+    }
+    if (obj === null || typeof obj !== 'object' || obj.w365 !== 1) {
+      if (tagged) {
+        errors.push({ code: 'E_BAD_ARGS', block: index, message: `Block ${index}: tool calls must include "w365":1` });
+      }
       return;
     }
     if (typeof obj.id !== 'string' || obj.id === '') {
@@ -79,7 +91,7 @@ export function parseReply(text, tools) {
       return;
     }
     seenIds.add(obj.id);
-    const spec =byName && byName.get(obj.tool);
+    const spec = byName && byName.get(obj.tool);
     if (byName && !spec) {
       errors.push({ code: 'E_UNKNOWN_TOOL', block: index, id: obj.id, message: `Unknown tool "${obj.tool}"` });
       return;
