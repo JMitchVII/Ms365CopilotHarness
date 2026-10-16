@@ -47,3 +47,32 @@ test('TN-03 out-of-order results resolve the right promises', async () => {
   assert.equal((await a).data, 'A');
   assert.equal((await b).data, 'B');
 });
+
+test('TN-04 a call with no result within the timeout rejects with E_TIMEOUT', async () => {
+  const { transport } = setup({ timeoutMs: 30 });
+  await assert.rejects(transport.send({ id: 'slow', tool: 'run_ps', args: { command: 'x' } }),
+    e => e.code === 'E_TIMEOUT' && /slow/.test(e.message));
+});
+
+test('TN-05 a disconnect rejects every pending call with E_TRANSPORT and the lastError message', async () => {
+  const { host, transport, statuses } = setup();
+  const a = transport.send({ id: 'a', tool: 'list_dir', args: {} });
+  const b = transport.send({ id: 'b', tool: 'list_dir', args: {} });
+  await tick();
+  host.ports[0].crash('Specified native messaging host not found.');
+  for (const p of [a, b]) {
+    await assert.rejects(p, e => e.code === 'E_TRANSPORT' && /host not found/.test(e.message));
+  }
+  assert.deepEqual(statuses, ['connected', 'disconnected']);
+});
+
+test('TN-06 the next send after a disconnect reconnects', async () => {
+  const { host, transport } = setup();
+  await transport.connect();
+  host.ports[0].crash();
+  const p = transport.send({ id: 'again', tool: 'list_dir', args: {} });
+  await tick();
+  assert.equal(host.ports.length, 2);
+  host.ports[1].reply({ v: 1, kind: 'result', id: 'again', ok: true, data: {} });
+  assert.equal((await p).ok, true);
+});
