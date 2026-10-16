@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "name": "list_dir",
+      "tier": "read",
+      "args": {
+        "path": { "type": "string", "required": false }
+      }
+    },
+    {
+      "name": "read_file",
+      "tier": "read",
+      "args": {
+        "path": { "type": "string", "required": true },
+        "offset": { "type": "integer", "required": false },
+        "limit": { "type": "integer", "required": false }
+      }
+    },
+    {
+      "name": "search",
+      "tier": "read",
+      "args": {
+        "pattern": { "type": "string", "required": true },
+        "path": { "type": "string", "required": false },
+        "glob": { "type": "string", "required": false },
+        "maxResults": { "type": "integer", "required": false }
+      }
+    },
+    {
+      "name": "write_file",
+      "tier": "write",
+      "args": {
+        "path": { "type": "string", "required": true },
+        "content": { "type": "string", "required": true },
+        "expectLines": { "type": "integer", "required": false }
+      }
+    },
+    {
+      "name": "edit_file",
+      "tier": "write",
+      "args": {
+        "path": { "type": "string", "required": true },
+        "oldText": { "type": "string", "required": true },
+        "newText": { "type": "string", "required": true },
+        "replaceAll": { "type": "boolean", "required": false },
+        "expectLines": { "type": "integer", "required": false }
+      }
+    },
+    {
+      "name": "run_ps",
+      "tier": "exec",
+      "args": {
+        "command": { "type": "string", "required": true },
+        "timeoutSec": { "type": "integer", "required": false }
+      }
+    },
+    {
+      "name": "ask_user",
+      "tier": "ui",
+      "args": {
+        "question": { "type": "string", "required": true }
+      }
+    },
+    {
+      "name": "task_done",
+      "tier": "ui",
+      "args": {
+        "summary": { "type": "string", "required": true }
+      }
+    }
+  ]
+}
