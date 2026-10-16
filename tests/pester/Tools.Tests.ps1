@@ -104,5 +104,13 @@ Describe 'Agent tools' {
             [System.IO.File]::ReadAllText($file) | Should -BeExactly "function A {`n    'new'`n}`n"
             $data.replacements | Should -Be 1
         }
+
+        It 'AT-10 no match throws E_EDIT_NO_MATCH and leaves the file unchanged' {
+            $file = Join-Path $root 'e.txt'
+            [System.IO.File]::WriteAllText($file, 'abc')
+            { Invoke-W365EditFile -Root $root -CallArgs @{ path = 'e.txt'; oldText = 'xyz'; newText = 'q' } } |
+                Should -Throw 'E_EDIT_NO_MATCH*'
+            [System.IO.File]::ReadAllText($file) | Should -BeExactly 'abc'
+        }
     }
 }

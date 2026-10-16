@@ -150,6 +150,7 @@ function Invoke-W365EditFile {
     $full = Resolve-WorkspacePath -Root $Root -Path $rel
     $text = [System.IO.File]::ReadAllText($full)
     $count = Measure-Occurrences $text $oldText
+    if ($count -eq 0) { Throw-W365 'E_EDIT_NO_MATCH' "oldText was not found in '$rel'. Read the file and copy the text exactly." }
     Write-WorkspaceText $full $text.Replace($oldText, $newText)
     [ordered]@{ path = $rel; replacements = $count }
 }
