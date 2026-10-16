@@ -11,3 +11,11 @@ test('CD-01 text that is still changing is not complete', () => {
   assert.equal(d.update(snap(600, 'Hello')), null);
   assert.equal(d.update(snap(1200, 'Hello wor')), null);
 });
+
+test('CD-02 text stable for the window and not busy is complete, reported once', () => {
+  const d = createCompletionDetector({ stableMs: 1000 });
+  d.update(snap(0, 'Done.'));
+  assert.equal(d.update(snap(500, 'Done.')), null);
+  assert.deepEqual(d.update(snap(1000, 'Done.')), { messageId: 'm1', text: 'Done.' });
+  assert.equal(d.update(snap(2000, 'Done.')), null, 'only once');
+});
