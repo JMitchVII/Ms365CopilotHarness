@@ -187,15 +187,39 @@ test('CA-14 text that arrived but does not match is reported with how much arriv
   assert.deepEqual(log.filter(e => e.click), []);
 });
 
-test('CA-15 a mismatch shows where the editor text first differs from what was pasted', async () => {
-  const { doc, input } = await idlePage();
+// An editor that shows the pasted text after `transform`.
+async function editorThatShows(transform) {
+  const { doc, input, log } = await idlePage();
   const fresh = input.cloneNode(true);
   input.replaceWith(fresh);
   fresh.addEventListener('paste', e => {
-    setTimeout(() => { fresh.textContent = e.clipboardData.getData('text/plain').replace('"w365":1', 'w365:1'); }, 10);
+    setTimeout(() => { fresh.textContent = transform(e.clipboardData.getData('text/plain')); }, 10);
   });
-  const outcome = await injectAndSend(doc, 'Call tools like {"w365":1,"id":"c0"} and wait.', { timeoutMs: 100 });
-  assert.equal(outcome.ok, false);
-  assert.match(outcome.reason, /^paste-mismatch \(got 39 of 41 characters\)/);
-  assert.match(outcome.reason, /expected «"w365":1,"id":"c0"}andwait\.» but box has «w365:1,"id":"c0"}andwait\.»/);
+  doc.querySelector(SELECTORS.sendButton).addEventListener('click', () => log.push({ click: true }));
+  return { doc, log };
+}
+const TEXT = 'Call tools like {"w365":1,"id":"c0"} and wait.';
+
+test('CA-15 a mismatch shows only the part that differs', async () => {
+  let { doc } = await editorThatShows(t => t.replace('"w365":1', 'w365:1'));
+  let outcome = await injectAndSend(doc, TEXT, { timeoutMs: 100 });
+  assert.equal(outcome.reason, 'paste-mismatch (got 39 of 41 characters): expected «"w365"» but box has «w365»');
+
+  ({ doc } = await editorThatShows(t => t + 'XY'));
+  outcome = await injectAndSend(doc, TEXT, { timeoutMs: 100 });
+  assert.equal(outcome.reason, 'paste-mismatch (got 43 of 41 characters): box has extra «XY»');
+
+  ({ doc } = await editorThatShows(t => t.replace(',"id"', '"id"')));
+  outcome = await injectAndSend(doc, TEXT, { timeoutMs: 100 });
+  assert.equal(outcome.reason, 'paste-mismatch (got 40 of 41 characters): box is missing «,»');
+
+  ({ doc } = await editorThatShows(t => t + ' é'));
+  outcome = await injectAndSend(doc, TEXT, { timeoutMs: 100 });
+  assert.match(outcome.reason, /box has extra «U\+00E9»$/, 'non-ASCII shown as code points');
+});
+
+test('CA-16 zero-width characters the editor adds are ignored when matching', async () => {
+  const { doc, log } = await editorThatShows(t => '​' + t.replace(' and', '​⁠ and') + '﻿​');
+  assert.deepEqual(await injectAndSend(doc, TEXT), { ok: true });
+  assert.ok(log.some(e => e.click));
 });

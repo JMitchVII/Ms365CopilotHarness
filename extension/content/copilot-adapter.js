@@ -84,14 +84,27 @@ function makePasteEvent(win, text) {
 }
 
 // Lexical renders each line as its own <p>, so newlines don't survive in textContent, and Copilot's editor may turn
-// markdown into formatting (fences, headings, emphasis). Compare without whitespace and markdown symbols.
-const normalise = s => s.replace(/[\s`#*_~>]+/g, '');
+// markdown into formatting (fences, headings, emphasis), and editors add zero-width characters. Compare without
+// whitespace, zero-width characters and markdown symbols.
+const normalise = s => s.replace(/[\s​-‍⁠`#*_~>]+/g, '');
 
-// Where two normalised texts part ways, for the panel: "expected «...» but box has «...»".
-function firstDifference(want, got, span = 40) {
-  let i = 0;
-  while (i < want.length && want[i] === got[i]) i++;
-  return `expected «${want.slice(i, i + span)}» but box has «${got.slice(i, i + span)}»`;
+// Just the part of two normalised texts that differs (common start and end trimmed), for the panel.
+// Anything outside printable ASCII is shown as U+XXXX so invisible characters can't hide.
+function describeDifference(want, got, span = 40) {
+  let start = 0;
+  while (start < want.length && want[start] === got[start]) start++;
+  let end = 0;
+  while (end < want.length - start && end < got.length - start
+    && want[want.length - 1 - end] === got[got.length - 1 - end]) end++;
+  const show = s => {
+    const visible = s.replace(/[^\x21-\x7e]/gu, c => `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`);
+    return visible.length > span ? `${visible.slice(0, span)}…` : visible;
+  };
+  const missing = want.slice(start, want.length - end);
+  const extra = got.slice(start, got.length - end);
+  if (!missing) return `box has extra «${show(extra)}»`;
+  if (!extra) return `box is missing «${show(missing)}»`;
+  return `expected «${show(missing)}» but box has «${show(extra)}»`;
 }
 
 // Pastes `text` into the composer and clicks send once the editor shows it and the send button has appeared.
@@ -117,7 +130,7 @@ export async function injectAndSend(doc, text, { timeoutMs = 5000, pollMs = 25 }
     await new Promise(r => setTimeout(r, pollMs));
   }
   if (pasted) return { ok: false, reason: 'selector-broken' };  // text is in, but no send button appeared
-  if (got) return { ok: false, reason: `paste-mismatch (got ${got.length} of ${want.length} characters): ${firstDifference(want, got)}` };
+  if (got) return { ok: false, reason: `paste-mismatch (got ${got.length} of ${want.length} characters): ${describeDifference(want, got)}` };
   return { ok: false, reason: 'paste-ignored' };
 }
 
