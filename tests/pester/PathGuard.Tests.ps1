@@ -11,4 +11,8 @@ Describe 'Resolve-WorkspacePath' {
     It 'PG-01 resolves a relative file name to a full path under the root' {
         Resolve-WorkspacePath -Root $root -Path 'a.txt' | Should -Be (Join-Path $root 'a.txt')
     }
+
+    It 'PG-02 resolves a nested relative path' {
+        Resolve-WorkspacePath -Root $root -Path 'src\lib\b.ps1' | Should -Be (Join-Path $root 'src\lib\b.ps1')
+    }
 }
