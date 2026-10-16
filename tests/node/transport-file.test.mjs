@@ -53,3 +53,20 @@ test('TF-04 no result within the timeout rejects with E_TIMEOUT', async () => {
   const { transport } = await setup({ timeoutMs: 40 });
   await assert.rejects(transport.send({ id: 'slow', tool: 'run_ps', args: { command: 'x' } }), e => e.code === 'E_TIMEOUT');
 });
+
+test('TF-05 a stale heartbeat means disconnected: send fails fast with E_TRANSPORT', async () => {
+  const { shared, inbox, transport, statuses } = await setup({ heartbeatStaleMs: 5000 });
+  shared.writeText('heartbeat.json', JSON.stringify({ at: new Date(Date.now() - 60_000).toISOString(), pid: 1 }));
+  const started = Date.now();
+  await assert.rejects(transport.send({ id: 't1', tool: 'list_dir', args: {} }),
+    e => e.code === 'E_TRANSPORT' && /not running|heartbeat/i.test(e.message));
+  assert.ok(Date.now() - started < 500, 'did not wait for the call timeout');
+  assert.deepEqual(inbox.names(), [], 'nothing left in the inbox for a dead agent');
+  assert.deepEqual(statuses, ['disconnected']);
+
+  shared.writeText('heartbeat.json', JSON.stringify({ at: new Date().toISOString(), pid: 1 }));
+  const hello = transport.connect();
+  await agentAnswers(inbox, (await shared.getDirectoryHandle('outbox')), c => ({ kind: 'hello', version: '0.1.0', tools: ['list_dir'] }));
+  assert.equal((await hello).kind, 'hello');
+  assert.deepEqual(statuses, ['disconnected', 'connected']);
+});
