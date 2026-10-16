@@ -204,8 +204,18 @@ function Invoke-W365Search {
 
 # Runs a command in a separate powershell.exe so it can't touch the agent's stdout (the native messaging pipe).
 # -EncodedCommand is used because the machine's ExecutionPolicy doesn't block it.
+# Keeps the start and end of long output (errors and summaries are usually at the end).
+function Limit-Output {
+    param([string]$Text, [int]$Max)
+    if ($Text.Length -le $Max) { return $Text, $false }
+    $head = [int]($Max * 0.2)
+    $tail = $Max - $head
+    $omitted = $Text.Length - $head - $tail
+    ($Text.Substring(0, $head) + "`n... [$omitted characters omitted] ...`n" + $Text.Substring($Text.Length - $tail)), $true
+}
+
 function Invoke-W365RunPs {
-    param([Parameter(Mandatory)][string]$Root, $CallArgs)
+    param([Parameter(Mandatory)][string]$Root, $CallArgs, [int]$MaxOutputChars = 100000)
     $command = [string](Get-CallArg $CallArgs 'command')
     $rootFull = Resolve-WorkspacePath -Root $Root -Path ''
     $script = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; `$ProgressPreference = 'SilentlyContinue'`n" + $command
@@ -235,7 +245,9 @@ function Invoke-W365RunPs {
             Throw-W365 'E_TIMEOUT' "Command still running after $timeoutSec s and was stopped"
         }
         $proc.WaitForExit()  # flushes async output
-        [ordered]@{ exitCode = $proc.ExitCode; stdout = $stdout.Result; stderr = $stderr.Result }
+        $out, $outCut = Limit-Output $stdout.Result $MaxOutputChars
+        $err, $errCut = Limit-Output $stderr.Result $MaxOutputChars
+        [ordered]@{ exitCode = $proc.ExitCode; stdout = $out; stderr = $err; truncated = ($outCut -or $errCut) }
     } finally {
         $proc.Dispose()
     }

@@ -209,5 +209,19 @@ Start-Sleep 60
                 Get-Process -Id $procId -ErrorAction SilentlyContinue | Should -BeNullOrEmpty -Because "$f should be killed"
             }
         }
+
+        It 'AT-17 output over the cap is cut down, keeping head and tail, with truncated set' {
+            $data = Invoke-W365RunPs -Root $root -MaxOutputChars 1000 -CallArgs @{
+                command = "'START'; 1..2000 | ForEach-Object { 'line ' + `$_ }; 'END'"
+            }
+            $data.truncated | Should -BeTrue
+            $data.stdout.Length | Should -BeLessOrEqual 1100
+            $data.stdout | Should -BeLike 'START*'
+            $data.stdout.TrimEnd() | Should -BeLike '*END'
+            $data.stdout | Should -BeLike '*characters omitted*'
+
+            $small = Invoke-W365RunPs -Root $root -MaxOutputChars 1000 -CallArgs @{ command = "'hi'" }
+            $small.truncated | Should -BeFalse
+        }
     }
 }
