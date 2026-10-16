@@ -41,4 +41,11 @@ function Install-W365Host {
     Set-Item -Path $RegistryPath -Value $manifestPath
 }
 
-Export-ModuleMember -Function New-W365HostManifest, Install-W365Host
+# Removes the registry key and manifest. The workspace and config.json are left in place.
+function Uninstall-W365Host {
+    param([string]$AgentDir = $PSScriptRoot, [string]$RegistryPath = $script:ChromeHostKey)
+    Remove-Item -Path $RegistryPath -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $AgentDir "$script:HostName.json") -Force -ErrorAction SilentlyContinue
+}
+
+Export-ModuleMember -Function New-W365HostManifest, Install-W365Host, Uninstall-W365Host

@@ -47,4 +47,16 @@ Describe 'Install-W365Host / Uninstall-W365Host' {
             Should -Be ([System.IO.Path]::GetFullPath($workspace))
         Test-Path $workspace | Should -BeTrue -Because 'the workspace folder is created if missing'
     }
+
+    It 'IN-03 uninstall removes the registry key and manifest, and leaves the workspace alone' {
+        Install-W365Host -ExtensionId $extId -AgentDir $agentDir -WorkspaceRoot $workspace -RegistryPath $regPath
+        Set-Content -LiteralPath (Join-Path $workspace 'keep.txt') -Value 'mine'
+
+        Uninstall-W365Host -AgentDir $agentDir -RegistryPath $regPath
+
+        Test-Path $regPath | Should -BeFalse
+        Test-Path (Join-Path $agentDir 'com.w365.harness.json') | Should -BeFalse
+        Test-Path (Join-Path $workspace 'keep.txt') | Should -BeTrue
+        { Uninstall-W365Host -AgentDir $agentDir -RegistryPath $regPath } | Should -Not -Throw -Because 'uninstall twice is fine'
+    }
 }
