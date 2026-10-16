@@ -1,6 +1,6 @@
 // Turns one completed Copilot reply into the message to paste back: parse, apply policy, run, format.
 import { parseReply } from './parser.js';
-import { formatResults } from './formatter.js';
+import { formatResults, errorResult } from './formatter.js';
 import { decide } from './policy.js';
 
 const denied = call => ({
@@ -10,8 +10,8 @@ const denied = call => ({
 export function createRouter({ tools, transport, ui, ledger, getMode }) {
   const tierOf = new Map(tools.map(t => [t.name, t.tier]));
 
-  async function handleReply({ conversation, text }) {
-    const { calls } = parseReply(text, tools);
+  async function handleReply({ conversation, messageId = '', text }) {
+    const { calls, errors } = parseReply(text, tools);
     const mode = await getMode();
     const results = [];
     for (const call of calls) {
@@ -23,6 +23,13 @@ export function createRouter({ tools, transport, ui, ledger, getMode }) {
         continue;
       }
       results.push(await transport.send(call));
+    }
+    for (const error of errors) {
+      // Errors without a call id are keyed by reply + block so they are reported once per reply.
+      const key = error.id ?? `${messageId}#block-${error.block}`;
+      if (await ledger.has(conversation, key)) continue;
+      await ledger.markDone(conversation, key);
+      results.push(errorResult(error));
     }
     return { message: results.length ? formatResults(results) : null };
   }

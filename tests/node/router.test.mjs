@@ -94,3 +94,16 @@ test('RT-05 calls already in the ledger are skipped', async () => {
   assert.equal(transport.sent.length, 1);
   assert.equal(again.message, null, 'nothing new to send');
 });
+
+test('RT-06 parse errors go back to Copilot as results without touching the transport', async () => {
+  const { router, transport } = setup();
+  const text = '```json\n{"w365":1,"id":"bad", oops}\n```\n' + call('u1', 'no_such_tool');
+  const out = await router.handleReply({ conversation: 'c', messageId: 'm1', text });
+  assert.equal(transport.sent.length, 0);
+  const results = resultsIn(out.message);
+  assert.deepEqual(results.map(r => r.error.code), ['E_PARSE', 'E_UNKNOWN_TOOL']);
+  assert.deepEqual(results.map(r => r.id), ['block-0', 'u1']);
+
+  const again = await router.handleReply({ conversation: 'c', messageId: 'm1', text });
+  assert.equal(again.message, null, 'errors for the same reply are reported once');
+});
