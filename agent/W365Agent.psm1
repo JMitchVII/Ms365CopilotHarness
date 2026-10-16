@@ -301,5 +301,18 @@ function Get-W365Hello {
     }
 }
 
-Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,
-    Invoke-W365EditFile, Invoke-W365Search, Invoke-W365RunPs, Invoke-W365Call, Get-W365Hello
+# --- Native messaging framing: 4-byte little-endian length + UTF-8 JSON ---
+
+# Reads one message and returns its JSON text.
+function Read-NativeMessage {
+    param([Parameter(Mandatory)][System.IO.Stream]$Stream)
+    $header = [byte[]]::new(4)
+    $Stream.Read($header, 0, 4) | Out-Null
+    $length = [System.BitConverter]::ToInt32($header, 0)
+    $body = [byte[]]::new($length)
+    $Stream.Read($body, 0, $length) | Out-Null
+    [System.Text.Encoding]::UTF8.GetString($body)
+}
+
+# Public: Resolve-WorkspacePath, the native framing functions and everything named *-W365*.
+Export-ModuleMember -Function Resolve-WorkspacePath, *-W365*, *-NativeMessage
