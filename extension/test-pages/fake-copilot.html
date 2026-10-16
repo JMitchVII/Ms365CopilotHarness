@@ -58,6 +58,15 @@ const LABELS = { json: 'JSON', powershell: 'PowerShell', '': 'Plain Text' };
 const feed = document.getElementById('feed');
 const input = document.getElementById('m365-chat-editor-target-element');
 const sendButton = document.querySelector('.fai-SendButton');
+const composer = sendButton.parentNode;
+let streaming = false;
+
+// Like the real page: the send button only exists while the editor has text (or as Stop while generating).
+function updateButton() {
+  const show = streaming || input.textContent.trim() !== '';
+  if (show && !sendButton.isConnected) composer.appendChild(sendButton);
+  if (!show && sendButton.isConnected) sendButton.remove();
+}
 let queue = [];
 let turn = 0;
 
@@ -102,7 +111,9 @@ function addTurn(userText) {
 function streamReply(wrapper, text) {
   const article = wrapper.querySelector('.fai-CopilotMessage');
   const reply = wrapper.querySelector('[data-testid="markdown-reply"]');
+  streaming = true;
   sendButton.setAttribute('aria-label', 'Stop generating');
+  updateButton();
   const steps = 4;
   let step = 0;
   const timer = setInterval(() => {
@@ -113,6 +124,8 @@ function streamReply(wrapper, text) {
       article.removeAttribute('aria-busy');
       reply.setAttribute('aria-hidden', 'false');
       sendButton.setAttribute('aria-label', 'Send');
+      streaming = false;
+      updateButton();
     }
   }, 300);
 }
@@ -122,7 +135,9 @@ input.addEventListener('paste', e => {
   e.preventDefault();
   const text = e.clipboardData.getData('text/plain');
   input.innerHTML = text.split('\n').map(line => `<p>${escapeHtml(line) || '<br>'}</p>`).join('');
+  updateButton();
 });
+input.addEventListener('input', updateButton);
 
 sendButton.addEventListener('click', () => {
   if (sendButton.getAttribute('aria-label') === 'Stop generating') return;
@@ -153,6 +168,7 @@ if (preset && SCRIPTS[preset]) {
   document.getElementById('script').value = SCRIPTS[preset];
   loadQueue(SCRIPTS[preset]);
 }
+updateButton();
 window.fakeCopilot = { loadQueue, get queue() { return queue; } };
 </script>
 </body>

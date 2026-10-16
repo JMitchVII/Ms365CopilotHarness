@@ -29,3 +29,12 @@ test('FK-01 the adapter can drive the fake page: paste, send, see it stream, rea
   assert.deepEqual(calls, [{ id: 'c1', tool: 'list_dir', args: {} }]);
   dom.window.close();
 });
+
+test('FK-02 like the real page, the fake shows its send button only once the editor has text', async () => {
+  const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'http://localhost/fake-copilot.html' });
+  const doc = dom.window.document;
+  Object.defineProperty(dom.window.HTMLElement.prototype, 'innerText', { get() { return this.textContent; } });
+  assert.equal(doc.querySelector('.fai-SendButton'), null);
+  assert.deepEqual(await injectAndSend(doc, 'hello'), { ok: true });
+  dom.window.close();
+});

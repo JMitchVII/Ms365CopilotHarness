@@ -40,6 +40,13 @@ const transport = {
   cancel: id => { native.cancel(id); fileProxy.cancel(id); },
 };
 
+// The Copilot tab: the active one if it matches the content script's URLs, else any matching tab.
+async function findCopilotTab() {
+  const url = chrome.runtime.getManifest().content_scripts[0].matches;
+  const tabs = await chrome.tabs.query({ url });
+  return (tabs.find(t => t.active) ?? tabs[0])?.id ?? null;
+}
+
 // --- Session ----------------------------------------------------------------------------------------------
 
 // Service workers can't use top-level await, so set-up is a promise every handler waits on.
@@ -51,8 +58,9 @@ const ready = (async () => {
     ledger: createLedger(chrome.storage.session),
     getMode: () => loadMode(chrome.storage.local),
     bootstrap: await getText('generated/bootstrap.md'),
+    findCopilotTab,
     injectInto: (tabId, text) => chrome.tabs.sendMessage(tabId, { type: 'inject', text })
-      .catch(e => ({ ok: false, reason: `tab-unreachable: ${e.message}` })),
+      .catch(e => ({ ok: false, reason: `tab-unreachable (reload the Copilot tab): ${e.message}` })),
   });
 })();
 
@@ -65,8 +73,8 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onMessage.addListener((msg, sender) => {
   const tabId = sender.tab?.id;
   ready.then(session => {
+    if (tabId != null) session.noteCopilotTab(tabId);  // any message from the page re-notes its tab
     switch (msg.type) {
-      case 'content-ready': session.noteCopilotTab(tabId); break;
       case 'reply': session.onReply({ tabId, conversation: msg.conversation, messageId: msg.messageId, text: msg.text }); break;
       case 'user-turn': session.onUserTurn(); break;
       case 'page-status': session.setStatus(msg.status); break;
