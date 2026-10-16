@@ -24,3 +24,22 @@ test('PM-01/05 the bootstrap documents every tool with its required args', async
     }
   }
 });
+
+test('PM-03 the custom instructions state the core rules', async () => {
+  const text = (await read('prompt/copilot-instructions.md')).toLowerCase();
+  const rules = {
+    'one code block per call': /own code block/,
+    'the w365 marker': /"w365":1/,
+    'unique ids': /new id|unique id|never reuse/,
+    'wait for results': /wait for (the )?results/,
+    'ask_user for questions and risky steps': /ask_user/,
+    'finish with task_done': /task_done/,
+    'wait for the bootstrap': /bootstrap/,
+  };
+  for (const [rule, pattern] of Object.entries(rules)) assert.match(text, pattern, rule);
+});
+
+test('PM-04/06 the custom instructions fit in Copilot\'s box', async () => {
+  const text = await read('prompt/copilot-instructions.md');
+  assert.ok(text.length <= CUSTOM_INSTRUCTIONS_LIMIT, `${text.length} chars > ${CUSTOM_INSTRUCTIONS_LIMIT}`);
+});
