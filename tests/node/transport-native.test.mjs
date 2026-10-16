@@ -76,3 +76,12 @@ test('TN-06 the next send after a disconnect reconnects', async () => {
   host.ports[1].reply({ v: 1, kind: 'result', id: 'again', ok: true, data: {} });
   assert.equal((await p).ok, true);
 });
+
+test('TN-07 cancel(id) drops the connection (stopping the host and its work) and rejects that call', async () => {
+  const { host, transport } = setup();
+  const p = transport.send({ id: 'long', tool: 'run_ps', args: { command: 'Start-Sleep 600' } });
+  await tick();
+  transport.cancel('long');
+  await assert.rejects(p, e => e.code === 'E_TRANSPORT' && /cancel/i.test(e.message));
+  assert.equal(host.ports[0].connected, false);
+});

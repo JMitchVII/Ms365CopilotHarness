@@ -72,5 +72,17 @@ export function createNativeTransport({ connectNative, getLastError = () => unde
     });
   }
 
-  return { connect, send };
+  // The agent runs one call at a time and can't be interrupted, so cancelling means closing the port:
+  // Chrome then stops the host. The next send() starts a fresh one.
+  function cancel(id) {
+    if (!port) return;
+    port.disconnect();  // Chrome doesn't fire onDisconnect for the side that disconnects
+    port = null;
+    hello = null;
+    for (const key of [...pending.keys()]) {
+      settle(key).reject(transportError('E_TRANSPORT', key === id ? 'Cancelled by user' : 'Cancelled with another call'));
+    }
+  }
+
+  return { connect, send, cancel };
 }
