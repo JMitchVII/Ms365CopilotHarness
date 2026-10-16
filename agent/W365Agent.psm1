@@ -48,4 +48,31 @@ function Resolve-WorkspacePath {
     $full
 }
 
-Export-ModuleMember -Function Resolve-WorkspacePath
+# Reads an argument from a hashtable or a PSCustomObject (ConvertFrom-Json output), with a default.
+function Get-CallArg {
+    param($CallArgs, [string]$Name, $Default = $null)
+    if ($null -eq $CallArgs) { return $Default }
+    if ($CallArgs -is [System.Collections.IDictionary]) {
+        if ($CallArgs.Contains($Name)) { return $CallArgs[$Name] }
+        return $Default
+    }
+    $prop = $CallArgs.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    $Default
+}
+
+function Invoke-W365ListDir {
+    param([Parameter(Mandatory)][string]$Root, $CallArgs)
+    $rel = Get-CallArg $CallArgs 'path' '.'
+    $full = Resolve-WorkspacePath -Root $Root -Path $rel
+    $entries = @(Get-ChildItem -LiteralPath $full -Force | Sort-Object Name | ForEach-Object {
+        if ($_.PSIsContainer) {
+            [ordered]@{ name = $_.Name; type = 'dir' }
+        } else {
+            [ordered]@{ name = $_.Name; type = 'file'; size = $_.Length }
+        }
+    })
+    [ordered]@{ path = $rel; entries = $entries }
+}
+
+Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir
