@@ -132,3 +132,18 @@ test('CA-10 the send button only exists once the editor has text: injector waits
   assert.deepEqual(await injectAndSend(doc, 'hello'), { ok: true });
   assert.deepEqual(log, [{ paste: 'hello' }, { click: 'hello' }]);
 });
+
+test('CA-11 a security check dialog that is in the page but not shown does not block sending', async () => {
+  const { doc, log } = await idlePage();
+  doc.body.insertAdjacentHTML('beforeend', '<div hidden><div role="dialog" aria-label="Security check required"></div></div>');
+  assert.equal(hasSecurityCheck(doc), false, 'inside a hidden container');
+
+  doc.querySelector('[hidden]').removeAttribute('hidden');
+  const dialog = doc.querySelector(SELECTORS.securityCheck);
+  dialog.checkVisibility = () => false;  // Chrome's own answer, e.g. display:none or visibility:hidden
+  assert.equal(hasSecurityCheck(doc), false, 'Chrome says it is not visible');
+
+  dialog.checkVisibility = () => true;
+  assert.equal(hasSecurityCheck(doc), true, 'shown');
+  assert.deepEqual(log, []);
+});

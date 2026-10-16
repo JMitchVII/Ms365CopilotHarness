@@ -57,8 +57,15 @@ export function checkPage(doc) {
   return { ok: missing.length === 0, missing };
 }
 
+// Copilot can keep the dialog in the page while it isn't showing, so only a rendered one counts.
+function isShown(el) {
+  if (el.closest('[hidden], [aria-hidden="true"]')) return false;
+  if (typeof el.checkVisibility !== 'function') return true;  // jsdom: the attribute checks are all we have
+  return el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+}
+
 export function hasSecurityCheck(doc) {
-  return !!doc.querySelector(SELECTORS.securityCheck);
+  return [...doc.querySelectorAll(SELECTORS.securityCheck)].some(isShown);
 }
 
 // Copilot's editor is Lexical, which ignores text set directly; it does accept a paste event.
