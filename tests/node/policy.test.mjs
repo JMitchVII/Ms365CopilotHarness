@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decide } from '../../extension/lib/policy.js';
+import { decide, loadMode, saveMode } from '../../extension/lib/policy.js';
+import { createStorageArea } from './helpers/chrome-fake.mjs';
 
 const AGENT_TIERS = ['read', 'write', 'exec'];
 
@@ -26,4 +27,13 @@ test('PO-05 an unknown mode or tier fails safe to ask', () => {
   for (const tier of AGENT_TIERS) assert.equal(decide('yolo', tier), 'ask', tier);
   assert.equal(decide(undefined, 'read'), 'ask');
   assert.equal(decide('fullAuto', 'mystery'), 'ask');
+});
+
+test('PO-06 mode defaults to tiered and persists in storage', async () => {
+  const storage = createStorageArea();
+  assert.equal(await loadMode(storage), 'tiered');
+  await saveMode(storage, 'fullAuto');
+  assert.equal(await loadMode(storage), 'fullAuto');
+  await assert.rejects(saveMode(storage, 'yolo'), /mode/);
+  assert.equal(await loadMode(createStorageArea({ mode: 'garbage' })), 'tiered');
 });

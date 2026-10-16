@@ -11,3 +11,17 @@ export function decide(mode, tier) {
   if (mode === 'tiered' && tier === 'read') return 'run';
   return 'ask';
 }
+
+const MODE_KEY = 'mode';
+const DEFAULT_MODE = 'tiered';
+
+// storage: chrome.storage.local (or anything with promise get/set).
+export async function loadMode(storage) {
+  const { [MODE_KEY]: mode } = await storage.get(MODE_KEY);
+  return MODES.includes(mode) ? mode : DEFAULT_MODE;
+}
+
+export async function saveMode(storage, mode) {
+  if (!MODES.includes(mode)) throw new Error(`Unknown mode "${mode}"`);
+  await storage.set({ [MODE_KEY]: mode });
+}
