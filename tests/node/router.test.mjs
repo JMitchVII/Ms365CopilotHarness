@@ -68,3 +68,29 @@ test('RT-03 a denied call is not sent and returns E_DENIED so Copilot can adapt'
   assert.equal(r.ok, false);
   assert.equal(r.error.code, 'E_DENIED');
 });
+
+test('RT-04 several calls run one at a time, in order, and come back as one message', async () => {
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const transport = fakeTransport(async c => {
+    inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise(r => setTimeout(r, 5));
+    inFlight--;
+    return { id: c.id, ok: true, data: {} };
+  });
+  const { router } = setup({ transport, mode: 'fullAuto' });
+  const text = call('a', 'list_dir') + '\n' + call('b', 'read_file', { path: 'x' }) + '\n' + call('c', 'run_ps', { command: 'ls' });
+  const out = await router.handleReply({ conversation: 'c', text });
+  assert.equal(maxInFlight, 1);
+  assert.deepEqual(transport.sent.map(c => c.id), ['a', 'b', 'c']);
+  assert.deepEqual(resultsIn(out.message).map(r => r.id), ['a', 'b', 'c']);
+});
+
+test('RT-05 calls already in the ledger are skipped', async () => {
+  const { router, transport } = setup();
+  const text = call('t1', 'list_dir');
+  await router.handleReply({ conversation: 'c', text });
+  const again = await router.handleReply({ conversation: 'c', text });
+  assert.equal(transport.sent.length, 1);
+  assert.equal(again.message, null, 'nothing new to send');
+});

@@ -15,13 +15,16 @@ export function createRouter({ tools, transport, ui, ledger, getMode }) {
     const mode = await getMode();
     const results = [];
     for (const call of calls) {
+      if (await ledger.has(conversation, call.id)) continue;
+      // Marked before running: a call must never run twice, even if we crash part way.
+      await ledger.markDone(conversation, call.id);
       if (decide(mode, tierOf.get(call.tool)) === 'ask' && !(await ui.requestApproval(call))) {
         results.push(denied(call));
         continue;
       }
       results.push(await transport.send(call));
     }
-    return { message: formatResults(results) };
+    return { message: results.length ? formatResults(results) : null };
   }
   return { handleReply };
 }
