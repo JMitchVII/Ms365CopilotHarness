@@ -22,3 +22,8 @@ test('PR-04 single w365 block with valid JSON yields one call', () => {
     errors: [],
   });
 });
+
+test('PR-05 other fenced languages are ignored', () => {
+  const reply = fence('powershell', 'Get-ChildItem') + '\n' + fence('json', '{"a":1}');
+  assert.deepEqual(parseReply(reply), { calls: [], errors: [] });
+});
