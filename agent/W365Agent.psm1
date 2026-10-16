@@ -331,5 +331,16 @@ function Read-NativeMessage {
     [System.Text.Encoding]::UTF8.GetString($body)
 }
 
+# Writes one message (JSON text) as a single frame and flushes it.
+function Write-NativeMessage {
+    param([Parameter(Mandatory)][System.IO.Stream]$Stream, [Parameter(Mandatory)][string]$Json)
+    $body = $script:Utf8NoBom.GetBytes($Json)
+    $frame = [byte[]]::new($body.Length + 4)
+    [System.BitConverter]::GetBytes([int32]$body.Length).CopyTo($frame, 0)
+    $body.CopyTo($frame, 4)
+    $Stream.Write($frame, 0, $frame.Length)
+    $Stream.Flush()
+}
+
 # Public: Resolve-WorkspacePath, the native framing functions and everything named *-W365*.
 Export-ModuleMember -Function Resolve-WorkspacePath, *-W365*, *-NativeMessage

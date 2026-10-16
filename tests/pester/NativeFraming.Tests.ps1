@@ -47,3 +47,17 @@ Describe 'Read-NativeMessage' {
         { Read-NativeMessage -Stream ([System.IO.MemoryStream]::new($frame[0..1])) } | Should -Throw '*E_TRANSPORT*'
     }
 }
+
+Describe 'Write-NativeMessage' {
+    It 'NF-05 writes the correct length prefix and round-trips with Read-NativeMessage' {
+        $json = '{"v":1,"kind":"result","id":"t1","ok":true}'
+        $stream = [System.IO.MemoryStream]::new()
+        Write-NativeMessage -Stream $stream -Json $json
+        $bytes = $stream.ToArray()
+        $bytes.Length | Should -Be ($json.Length + 4)
+        [System.BitConverter]::ToInt32($bytes, 0) | Should -Be $json.Length
+
+        $stream.Position = 0
+        Read-NativeMessage -Stream $stream | Should -BeExactly $json
+    }
+}
