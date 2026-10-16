@@ -3,3 +3,4 @@ agent/logs/
 *.log
 agent/config.json
 agent/com.w365.harness.json
+scratch/
