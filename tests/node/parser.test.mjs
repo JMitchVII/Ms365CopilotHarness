@@ -89,3 +89,14 @@ test('PR-11 wrong arg type yields E_BAD_ARGS', () => {
     assert.equal(errors[0]?.code, 'E_BAD_ARGS', body);
   }
 });
+
+test('PR-12 duplicate id in one reply: first runs, second is E_BAD_ARGS', () => {
+  const reply = fence('w365', '{"w365":1,"id":"d","tool":"list_dir","args":{}}') + '\n' +
+    fence('w365', '{"w365":1,"id":"d","tool":"read_file","args":{"path":"x"}}');
+  const { calls, errors } = parseReply(reply, TOOLS);
+  assert.deepEqual(calls.map(c => c.tool), ['list_dir']);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].code, 'E_BAD_ARGS');
+  assert.equal(errors[0].block, 1);
+  assert.match(errors[0].message, /duplicate/i);
+});

@@ -47,6 +47,7 @@ export function parseReply(text, tools) {
   const byName = tools ? new Map(tools.map(t => [t.name, t])) : null;
   const calls = [];
   const errors = [];
+  const seenIds = new Set();
   findFences(text).forEach((block, index) => {
     if (block.lang !== 'w365') return;
     let obj;
@@ -60,7 +61,13 @@ export function parseReply(text, tools) {
       errors.push({ code: 'E_BAD_ARGS', block: index, message: `Block ${index}: call is missing a string "id"` });
       return;
     }
-    const spec = byName && byName.get(obj.tool);
+    if (seenIds.has(obj.id)) {
+      // No `id` on this error: it would clash with the earlier call that owns the id.
+      errors.push({ code: 'E_BAD_ARGS', block: index, message: `Block ${index}: duplicate id "${obj.id}" in this reply` });
+      return;
+    }
+    seenIds.add(obj.id);
+    const spec =byName && byName.get(obj.tool);
     if (byName && !spec) {
       errors.push({ code: 'E_UNKNOWN_TOOL', block: index, id: obj.id, message: `Unknown tool "${obj.tool}"` });
       return;
