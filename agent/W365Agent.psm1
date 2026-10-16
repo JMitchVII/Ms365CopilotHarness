@@ -253,5 +253,22 @@ function Invoke-W365RunPs {
     }
 }
 
+$script:Handlers = @{
+    list_dir   = 'Invoke-W365ListDir'
+    read_file  = 'Invoke-W365ReadFile'
+    search     = 'Invoke-W365Search'
+    write_file = 'Invoke-W365WriteFile'
+    edit_file  = 'Invoke-W365EditFile'
+    run_ps     = 'Invoke-W365RunPs'
+}
+
+# Runs one call ({id, tool, args}) and returns its result.
+function Invoke-W365Call {
+    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)]$Call)
+    $handler = $script:Handlers[[string]$Call.tool]
+    $data = & $handler -Root $Root -CallArgs $Call.args
+    [ordered]@{ id = $Call.id; ok = $true; data = $data }
+}
+
 Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,
-    Invoke-W365EditFile, Invoke-W365Search, Invoke-W365RunPs
+    Invoke-W365EditFile, Invoke-W365Search, Invoke-W365RunPs, Invoke-W365Call
