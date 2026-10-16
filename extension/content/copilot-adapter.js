@@ -56,6 +56,45 @@ export function checkPage(doc) {
   return { ok: missing.length === 0, missing };
 }
 
+export function hasSecurityCheck(doc) {
+  return !!doc.querySelector(SELECTORS.securityCheck);
+}
+
+// Copilot's editor is Lexical, which ignores text set directly; it does accept a paste event.
+function makePasteEvent(win, text) {
+  if (win.DataTransfer && win.ClipboardEvent) {
+    const data = new win.DataTransfer();
+    data.setData('text/plain', text);
+    return new win.ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+  }
+  // Fallback (and tests): a plain event carrying clipboardData, which is all Lexical reads.
+  const event = new win.Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', {
+    value: { types: ['text/plain'], getData: type => (type === 'text/plain' ? text : '') },
+  });
+  return event;
+}
+
+const normalise = s => s.replace(/\s+/g, ' ').trim();
+
+// Pastes `text` into the composer and clicks send once the editor shows it. Never sends half a message.
+export async function injectAndSend(doc, text, { timeoutMs = 3000, pollMs = 25 } = {}) {
+  const input = doc.querySelector(SELECTORS.input);
+  const send = doc.querySelector(SELECTORS.sendButton);
+  if (!input || !send) return { ok: false, reason: 'selector-broken' };
+  input.focus?.();
+  input.dispatchEvent(makePasteEvent(doc.defaultView, text));
+  const want = normalise(text);
+  for (let waited = 0; waited <= timeoutMs; waited += pollMs) {
+    if (normalise(input.textContent) === want) {
+      send.click();
+      return { ok: true };
+    }
+    await new Promise(r => setTimeout(r, pollMs));
+  }
+  return { ok: false, reason: 'paste-ignored' };
+}
+
 export function readLatestReply(doc) {
   const turns = doc.querySelectorAll(SELECTORS.turn);
   const turn = turns[turns.length - 1];

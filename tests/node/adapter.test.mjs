@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
-import { readLatestReply, readCodeBlock, checkPage, SELECTORS } from '../../extension/content/copilot-adapter.js';
+import { readLatestReply, readCodeBlock, checkPage, SELECTORS, injectAndSend, hasSecurityCheck } from '../../extension/content/copilot-adapter.js';
 
 const fixture = async name =>
   new JSDOM(await readFile(new URL(`../../protocol/fixtures/dom/${name}`, import.meta.url), 'utf8')).window.document;
@@ -61,4 +61,37 @@ test('CA-06 all selectors live in one config object with the required keys', () 
     'input', 'sendButton', 'securityCheck']) {
     assert.equal(typeof SELECTORS[key], 'string', key);
   }
+});
+
+// Copilot page with an idle composer. The fake "Lexical" copies pasted text into the editor, like the real one.
+async function idlePage() {
+  const doc = await fixture('chat-page-streaming.html');
+  doc.querySelector('[data-message-index="1"]').remove();
+  doc.querySelector(SELECTORS.stopButton).setAttribute('aria-label', 'Send');
+  doc.querySelector(SELECTORS.securityCheck).remove();
+  const input = doc.querySelector(SELECTORS.input);
+  const log = [];
+  input.addEventListener('paste', e => {
+    const text = e.clipboardData.getData('text/plain');
+    log.push({ paste: text });
+    setTimeout(() => { input.textContent = text; }, 10);  // Lexical updates the DOM a moment later
+  });
+  doc.querySelector(SELECTORS.sendButton).addEventListener('click', () => log.push({ click: input.textContent }));
+  return { doc, input, log };
+}
+
+test('CA-04 injector pastes the text into the editor, waits for it to appear, then clicks send', async () => {
+  const { doc, log } = await idlePage();
+  const payload = '```w365-result\n{"id":"t1","ok":true}\n```';
+  const outcome = await injectAndSend(doc, payload);
+  assert.deepEqual(outcome, { ok: true });
+  assert.deepEqual(log, [{ paste: payload }, { click: payload }]);
+});
+
+test('CA-04b injector gives up without sending if the editor ignores the paste', async () => {
+  const { doc, log } = await idlePage();
+  doc.querySelector(SELECTORS.input).replaceWith(doc.querySelector(SELECTORS.input).cloneNode(true));  // drops listener
+  const outcome = await injectAndSend(doc, 'hello', { timeoutMs: 100 });
+  assert.deepEqual(outcome, { ok: false, reason: 'paste-ignored' });
+  assert.deepEqual(log.filter(e => e.click), []);
 });
