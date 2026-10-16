@@ -1,6 +1,8 @@
 # W365 agent core: workspace path guard, tools and call dispatcher.
 Set-StrictMode -Version Latest
 
+$script:AgentVersion = '0.1.0'
+
 # Errors carry their protocol code as a prefix: "E_CODE: message". The dispatcher turns them into results.
 function Throw-W365 {
     param([string]$Code, [string]$Message)
@@ -287,5 +289,17 @@ function Invoke-W365Call {
     }
 }
 
+# First message on every connection: tells the extension who we are and what we can run.
+function Get-W365Hello {
+    param([Parameter(Mandatory)][string]$Root)
+    [ordered]@{
+        v       = 1
+        kind    = 'hello'
+        version = $script:AgentVersion
+        root    = Resolve-WorkspacePath -Root $Root -Path ''
+        tools   = @($script:Handlers.Keys | Sort-Object)
+    }
+}
+
 Export-ModuleMember -Function Resolve-WorkspacePath, Invoke-W365ListDir, Invoke-W365ReadFile, Invoke-W365WriteFile,
-    Invoke-W365EditFile, Invoke-W365Search, Invoke-W365RunPs, Invoke-W365Call
+    Invoke-W365EditFile, Invoke-W365Search, Invoke-W365RunPs, Invoke-W365Call, Get-W365Hello

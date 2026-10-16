@@ -51,3 +51,20 @@ Describe 'Invoke-W365Call' {
         (Invoke-W365Call -Root $root -Call $json).id | Should -Be 'h3'
     }
 }
+
+Describe 'Get-W365Hello' {
+    It 'AD-05 returns version, root and exactly the non-ui tools from protocol/tools.json' {
+        $root = Join-Path $TestDrive 'ws'
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $spec = Get-Content -Raw (Join-Path $PSScriptRoot '..\..\protocol\tools.json') | ConvertFrom-Json
+        $expected = @($spec.tools | Where-Object tier -ne 'ui' | ForEach-Object name | Sort-Object)
+
+        $hello = Get-W365Hello -Root $root
+
+        $hello.v | Should -Be 1
+        $hello.kind | Should -Be 'hello'
+        $hello.version | Should -Match '^\d+\.\d+\.\d+$'
+        $hello.root | Should -Be ([System.IO.Path]::GetFullPath($root))
+        @($hello.tools | Sort-Object) | Should -Be $expected
+    }
+}
