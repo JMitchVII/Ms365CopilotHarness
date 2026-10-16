@@ -1,0 +1,25 @@
+{
+  "source": "synthetic",
+  "note": "Example code (no marker) is ignored; bad calls produce errors alongside good ones.",
+  "reply": "Here is the script:\n```powershell\nGet-ChildItem | Sort-Object Length\n```\nSaving it:\n```json\n{\"w365\":1,\"id\":\"c3\",\"tool\":\"write_file\",\"args\":{\"path\":\"sort.ps1\",\"content\":\"Get-ChildItem | Sort-Object Length\\n\",\"expectLines\":1}}\n```\n```json\n{\"w365\":1,\"id\":\"c4\",\"tool\":\"run_ps\",\"args\":{}}\n```",
+  "expected": {
+    "calls": [
+      {
+        "id": "c3",
+        "tool": "write_file",
+        "args": {
+          "path": "sort.ps1",
+          "content": "Get-ChildItem | Sort-Object Length\n",
+          "expectLines": 1
+        }
+      }
+    ],
+    "errors": [
+      {
+        "code": "E_BAD_ARGS",
+        "block": 2,
+        "id": "c4"
+      }
+    ]
+  }
+}

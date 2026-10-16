@@ -1,0 +1,25 @@
+{
+  "source": "synthetic",
+  "note": "Shape the content adapter produces from Copilot DOM: blocks labelled with the display name (JSON), prose around them.",
+  "reply": "I will start by looking at the workspace.\n\n```json\n{\"w365\":1,\"id\":\"c1\",\"tool\":\"list_dir\",\"args\":{\"path\":\".\"}}\n```\n\nThen read the README.\n\n```json\n{\"w365\":1,\"id\":\"c2\",\"tool\":\"read_file\",\"args\":{\"path\":\"README.md\",\"limit\":200}}\n```\n\nI will wait for the results.",
+  "expected": {
+    "calls": [
+      {
+        "id": "c1",
+        "tool": "list_dir",
+        "args": {
+          "path": "."
+        }
+      },
+      {
+        "id": "c2",
+        "tool": "read_file",
+        "args": {
+          "path": "README.md",
+          "limit": 200
+        }
+      }
+    ],
+    "errors": []
+  }
+}

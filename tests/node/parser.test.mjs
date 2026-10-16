@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { parseReply, findFences } from '../../extension/lib/parser.js';
 
 test('PR-02 parseReply("") returns no calls and no errors', () => {
@@ -159,4 +159,20 @@ test('PR-13c fence labels are trimmed and lower-cased; closing fence needs as ma
   assert.deepEqual(findFences('```  W365   \nbody\n```  '), [{ lang: 'w365', body: 'body' }]);
   assert.deepEqual(findFences('```plain text\na\n```'), [{ lang: 'plain text', body: 'a' }]);
   assert.deepEqual(findFences('````md\n```\ninner\n```\n````'), [{ lang: 'md', body: '```\ninner\n```' }]);
+});
+
+// Golden tests. Each fixture: { source: "copilot"|"synthetic", note, reply, expected: { calls, errors } }.
+// Errors are compared on code/block/id only, so message wording can change freely.
+const REPLIES_DIR = new URL('../../protocol/fixtures/replies/', import.meta.url);
+
+test('PR-15 every reply fixture parses to its expected output', async () => {
+  const files = (await readdir(REPLIES_DIR)).filter(f => f.endsWith('.json'));
+  assert.ok(files.length > 0, 'no reply fixtures found');
+  for (const file of files) {
+    const fx = JSON.parse(await readFile(new URL(file, REPLIES_DIR), 'utf8'));
+    const { calls, errors } = parseReply(fx.reply, TOOLS);
+    const pick = ({ code, block, id }) => ({ code, block, id });
+    assert.deepEqual(calls, fx.expected.calls, `${file}: calls`);
+    assert.deepEqual(errors.map(pick), fx.expected.errors.map(pick), `${file}: errors`);
+  }
 });
