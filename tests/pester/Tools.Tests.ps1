@@ -54,5 +54,14 @@ Describe 'Agent tools' {
             New-Item -ItemType Directory -Path (Join-Path $root 'd') | Out-Null
             { Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'd' } } | Should -Throw 'E_NOT_FOUND*'
         }
+
+        It 'AT-06 preserves UTF-8 (with or without BOM) and drops the BOM' {
+            # Non-ASCII built from char codes: PS 5.1 reads BOM-less .ps1 files as ANSI.
+            $text = "caf$([char]0xE9) $([char]0x2713) $([char]0x65E5)$([char]0x672C)"
+            [System.IO.File]::WriteAllText((Join-Path $root 'u.txt'), $text, [System.Text.UTF8Encoding]::new($false))
+            [System.IO.File]::WriteAllText((Join-Path $root 'b.txt'), $text, [System.Text.UTF8Encoding]::new($true))
+            (Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'u.txt' }).content | Should -BeExactly "1`t$text"
+            (Invoke-W365ReadFile -Root $root -CallArgs @{ path = 'b.txt' }).content | Should -BeExactly "1`t$text"
+        }
     }
 }
