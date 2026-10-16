@@ -44,3 +44,11 @@ test('PR-07 invalid JSON yields no call and an E_PARSE error with the block inde
   assert.equal(errors[0].block, 1);
   assert.equal(typeof errors[0].message, 'string');
 });
+
+test('PR-08 missing id yields E_BAD_ARGS and no call', () => {
+  const { calls, errors } = parseReply(fence('w365', '{"w365":1,"tool":"list_dir","args":{}}'));
+  assert.deepEqual(calls, []);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].code, 'E_BAD_ARGS');
+  assert.match(errors[0].message, /\bid\b/);
+});

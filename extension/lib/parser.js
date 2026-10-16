@@ -36,6 +36,10 @@ export function parseReply(text) {
       errors.push({ code: 'E_PARSE', block: index, message: `Block ${index} is not valid JSON: ${e.message}` });
       return;
     }
+    if (typeof obj.id !== 'string' || obj.id === '') {
+      errors.push({ code: 'E_BAD_ARGS', block: index, message: `Block ${index}: call is missing a string "id"` });
+      return;
+    }
     calls.push({ id: obj.id, tool: obj.tool, args: obj.args });
   });
   return { calls, errors };
