@@ -85,3 +85,20 @@ test('TN-07 cancel(id) drops the connection (stopping the host and its work) and
   await assert.rejects(p, e => e.code === 'E_TRANSPORT' && /cancel/i.test(e.message));
   assert.equal(host.ports[0].connected, false);
 });
+
+test('TN-08 restart() fails a stalled call, drops the old host and connects a fresh one', async () => {
+  const { host, transport, statuses } = setup();
+  const p = transport.send({ id: 'stuck', tool: 'run_ps', args: { command: 'Read-Host' } });
+  await tick();
+  await transport.restart();
+  await assert.rejects(p, e => e.code === 'E_TRANSPORT' && /restart/i.test(e.message));
+  assert.equal(host.ports.length, 2);
+  assert.equal(host.ports[0].connected, false);
+  assert.deepEqual(host.ports[1].posted[0], { v: 1, kind: 'hello' });
+  assert.equal(statuses.at(-1), 'connected');
+
+  const next = transport.send({ id: 'n1', tool: 'list_dir', args: {} });
+  await tick();
+  host.ports[1].reply({ v: 1, kind: 'result', id: 'n1', ok: true, data: {} });
+  assert.deepEqual(await next, { id: 'n1', ok: true, data: {} });
+});

@@ -126,3 +126,9 @@ test('PN-11 the line-count check toggle defaults to on and persists', async () =
   await again.load();
   assert.equal(again.view().checkLines, false);
 });
+
+test('PN-12 Restart agent sends the restart message', () => {
+  const { panel, sent } = setup();
+  panel.restartAgent();
+  assert.deepEqual(sent, [{ type: 'restart-agent' }]);
+});

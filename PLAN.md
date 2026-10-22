@@ -340,6 +340,9 @@ PO-01..06, LG-01..03, RT-01..12, TN-01..07 · CD-01..05, CA-01..08 · PN-01..09 
 Added along the way: SY-01 (extension copies of tools.json/bootstrap stay in sync), WR-01..06 (service-worker
 session wiring in `extension/lib/session.js`), MF-01..02 (manifest key → fixed extension id
 `mibjgjdclpgkohlepnkfpemcddpbcjbb`), FK-01 (fake Copilot page is readable by the real adapter).
+Panel extras (2026-10-23): PO-07/RT-13/PN-11 line-count check toggle (off = the extension drops `expectLines`
+before calls reach the agent); TN-08/WR-08/PN-12 Restart agent button (native only: fails the stalled call with
+E_TRANSPORT so Copilot hears about it, then starts a fresh host).
 
 Decisions made while building:
 - Pester 6.2 (newest on PSGallery) is used; the tests run unchanged on it. Root-level `BeforeEach` isn't allowed in 6.

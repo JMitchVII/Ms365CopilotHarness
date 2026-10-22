@@ -1,5 +1,6 @@
 // Native messaging transport: talks to agent/host.bat through chrome.runtime.connectNative.
 // Interface shared with the file transport: connect() -> hello, send(call) -> result, cancel(id).
+// Native only: restart().
 
 export const HOST_NAME = 'com.w365.harness';
 
@@ -74,15 +75,23 @@ export function createNativeTransport({ connectNative, getLastError = () => unde
 
   // The agent runs one call at a time and can't be interrupted, so cancelling means closing the port:
   // Chrome then stops the host. The next send() starts a fresh one.
-  function cancel(id) {
+  function drop(reasonFor) {
     if (!port) return;
     port.disconnect();  // Chrome doesn't fire onDisconnect for the side that disconnects
     port = null;
     hello = null;
-    for (const key of [...pending.keys()]) {
-      settle(key).reject(transportError('E_TRANSPORT', key === id ? 'Cancelled by user' : 'Cancelled with another call'));
-    }
+    for (const key of [...pending.keys()]) settle(key).reject(transportError('E_TRANSPORT', reasonFor(key)));
   }
 
-  return { connect, send, cancel };
+  function cancel(id) {
+    drop(key => (key === id ? 'Cancelled by user' : 'Cancelled with another call'));
+  }
+
+  // For a host that seems stalled: fail whatever it was running and start a fresh one.
+  async function restart() {
+    drop(() => 'The user restarted the agent because this call stalled. Try again or another way.');
+    await connect();
+  }
+
+  return { connect, send, cancel, restart };
 }

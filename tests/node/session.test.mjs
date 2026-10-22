@@ -122,3 +122,14 @@ test('WR-07 Start session finds the Copilot tab itself when none was noted (serv
   await until(() => injected.length);
   assert.deepEqual(injected, [{ tabId: 12, text: 'BOOTSTRAP TEXT' }]);
 });
+
+test('WR-08 Restart agent from the panel restarts the transport', async () => {
+  const { session, transport } = setup();
+  let restarts = 0;
+  transport.restart = async () => { restarts++; };
+  const panel = createPort();
+  session.attachPanel(panel);
+  panel.fromOther({ type: 'restart-agent' });
+  await until(() => restarts);
+  assert.equal(restarts, 1);
+});

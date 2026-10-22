@@ -57,6 +57,7 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
       case 'continue': answer(msg.requestId, !!msg.go); break;
       case 'stop': stop(); break;
       case 'start-session': startSession(); break;
+      case 'restart-agent': restartAgent(); break;
     }
   }
 
@@ -66,6 +67,14 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
     for (const requestId of [...pending.keys()]) {
       const { event } = pending.get(requestId);
       answer(requestId, event.type === 'question' ? '' : false);
+    }
+  }
+
+  async function restartAgent() {
+    try {
+      await transport.restart?.();
+    } catch (e) {
+      setStatus(`disconnected: ${e?.message ?? e}`);
     }
   }
 

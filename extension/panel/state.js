@@ -73,6 +73,8 @@ export function createPanelState({ storage, send }) {
       send({ type: 'continue', requestId: state.confirm.requestId, go });
       state.confirm = null;
     },
+    // For a stalled agent: the service worker fails its current call and starts a fresh host.
+    restartAgent() { send({ type: 'restart-agent' }); },
     // Kill switch. The service worker cancels the router's pending work; prompts here are now stale.
     stop() {
       state.approvals = [];

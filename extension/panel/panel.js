@@ -59,6 +59,7 @@ document.querySelectorAll('input[name="mode"]').forEach(input =>
 $('check-lines').addEventListener('change', async e => { await panel.setCheckLines(e.target.checked); render(); });
 $('transport').addEventListener('change', async e => { await panel.setTransport(e.target.value); render(); });
 $('start').addEventListener('click', () => port.postMessage({ type: 'start-session' }));
+$('restart-agent').addEventListener('click', () => panel.restartAgent());
 $('stop').addEventListener('click', () => { panel.stop(); render(); });
 
 // --- Rendering --------------------------------------------------------------------------------------------

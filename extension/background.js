@@ -38,6 +38,7 @@ async function currentTransport() {
 const transport = {
   send: async call => (await currentTransport()).send(call),
   cancel: id => { native.cancel(id); fileProxy.cancel(id); },
+  restart: () => native.restart(),  // the file transport's agent is started by hand, so only native restarts
 };
 
 // The Copilot tab: the active one if it matches the content script's URLs, else any matching tab.
