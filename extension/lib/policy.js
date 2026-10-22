@@ -25,3 +25,16 @@ export async function saveMode(storage, mode) {
   if (!MODES.includes(mode)) throw new Error(`Unknown mode "${mode}"`);
   await storage.set({ [MODE_KEY]: mode });
 }
+
+// Whether the agent checks write_file/edit_file content against Copilot's expectLines. On by default; turning it
+// off saves the tokens Copilot spends resending content when its own line count is wrong.
+const CHECK_LINES_KEY = 'checkLines';
+
+export async function loadCheckLines(storage) {
+  const { [CHECK_LINES_KEY]: on } = await storage.get(CHECK_LINES_KEY);
+  return on !== false;
+}
+
+export async function saveCheckLines(storage, on) {
+  await storage.set({ [CHECK_LINES_KEY]: !!on });
+}

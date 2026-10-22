@@ -2,7 +2,7 @@
 // approvals -> side panel and back. Kept free of chrome.* so it can be tested; background.js supplies the I/O.
 import { createRouter } from './router.js';
 
-export function createSession({ tools, transport, ledger, getMode, bootstrap, injectInto, findCopilotTab = async () => null,
+export function createSession({ tools, transport, ledger, getMode, getCheckLines, bootstrap, injectInto, findCopilotTab = async () => null,
   retryDelayMs = 1000, maxAutoTurns }) {
   const tierOf = new Map(tools.map(t => [t.name, t.tier]));
   let panel = null;
@@ -48,7 +48,7 @@ export function createSession({ tools, transport, ledger, getMode, bootstrap, in
       summary: result.ok ? 'ok' : `${result.error?.code}: ${result.error?.message ?? ''}`.slice(0, 200),
     }),
   };
-  const router = createRouter({ tools, transport, ui, ledger, getMode, maxAutoTurns });
+  const router = createRouter({ tools, transport, ui, ledger, getMode, getCheckLines, maxAutoTurns });
 
   function onPanelMessage(msg) {
     switch (msg.type) {

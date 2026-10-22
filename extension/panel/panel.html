@@ -19,6 +19,9 @@
       <label><input type="radio" name="mode" value="tiered"> Tiered</label>
       <label><input type="radio" name="mode" value="approveAll"> Approve everything</label>
     </fieldset>
+    <label class="row" title="Off: the agent no longer rejects writes whose line count differs from Copilot's expectLines, so Copilot stops resending them.">
+      <input type="checkbox" id="check-lines"> Check line counts on writes
+    </label>
     <label class="row">Transport
       <select id="transport">
         <option value="native">Native messaging</option>

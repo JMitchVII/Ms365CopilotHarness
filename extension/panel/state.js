@@ -1,13 +1,13 @@
 // Side panel state, kept apart from the DOM so it can be tested. The view renders `view()`;
 // `send` posts messages to the service worker; `handle` receives the service worker's events.
-import { loadMode, saveMode } from '../lib/policy.js';
+import { loadMode, saveMode, loadCheckLines, saveCheckLines } from '../lib/policy.js';
 
 export const TRANSPORTS = ['native', 'file'];
 const TRANSPORT_KEY = 'transport';
 const LOG_LIMIT = 200;
 
 export function createPanelState({ storage, send }) {
-  const state = { mode: 'tiered', transport: 'native', status: 'unknown', approvals: [], questions: [], log: [],
+  const state = { mode: 'tiered', checkLines: true, transport: 'native', status: 'unknown', approvals: [], questions: [], log: [],
     confirm: null, done: null };
 
   function answerApproval(requestId, approved) {
@@ -18,12 +18,17 @@ export function createPanelState({ storage, send }) {
   return {
     async load() {
       state.mode = await loadMode(storage);
+      state.checkLines = await loadCheckLines(storage);
       const { [TRANSPORT_KEY]: transport } = await storage.get(TRANSPORT_KEY);
       state.transport = TRANSPORTS.includes(transport) ? transport : 'native';
     },
     async setMode(mode) {
       await saveMode(storage, mode);
       state.mode = mode;
+    },
+    async setCheckLines(on) {
+      await saveCheckLines(storage, on);
+      state.checkLines = !!on;
     },
     async setTransport(transport) {
       if (!TRANSPORTS.includes(transport)) throw new Error(`Unknown transport "${transport}"`);

@@ -115,3 +115,14 @@ test('PN-10 the stylesheet keeps [hidden] elements hidden even when a class sets
   const css = await readFile(new URL('../../extension/panel/panel.css', import.meta.url), 'utf8');
   assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 });
+
+test('PN-11 the line-count check toggle defaults to on and persists', async () => {
+  const { panel, storage } = setup();
+  await panel.load();
+  assert.equal(panel.view().checkLines, true);
+  await panel.setCheckLines(false);
+  assert.equal(panel.view().checkLines, false);
+  const again = createPanelState({ storage, send() {} });
+  await again.load();
+  assert.equal(again.view().checkLines, false);
+});

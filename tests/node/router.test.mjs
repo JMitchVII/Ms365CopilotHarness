@@ -29,10 +29,10 @@ function fakeUi({ approve = () => true, answer = () => 'answer', confirm = () =>
   return ui;
 }
 
-function setup({ mode = 'tiered', transport = fakeTransport(), ui = fakeUi(), maxAutoTurns } = {}) {
+function setup({ mode = 'tiered', transport = fakeTransport(), ui = fakeUi(), maxAutoTurns, checkLines } = {}) {
   const router = createRouter({
     tools: TOOLS, transport, ui, ledger: createLedger(createStorageArea()),
-    getMode: async () => mode, maxAutoTurns,
+    getMode: async () => mode, maxAutoTurns, getCheckLines: checkLines === undefined ? undefined : async () => checkLines,
   });
   return { router, transport, ui };
 }
@@ -195,4 +195,20 @@ test('RT-12 every result is reported to the panel activity log', async () => {
   const { router } = setup({ ui });
   await router.handleReply({ conversation: 'c', text: call('r1', 'list_dir') + call('w1', 'write_file', { path: 'a', content: '' }) });
   assert.deepEqual(activity, [['r1', true], ['w1', false]]);
+});
+
+test('RT-13 with the line-count check off, expectLines is dropped before the call reaches the agent', async () => {
+  const write = { path: 'a.txt', content: 'x', expectLines: 5 };
+  const edit = { path: 'a.txt', oldText: 'x', newText: 'y', expectLines: 2 };
+  const off = setup({ mode: 'fullAuto', checkLines: false });
+  await off.router.handleReply({ conversation: 'c', text: call('w1', 'write_file', write) + call('e1', 'edit_file', edit) });
+  assert.deepEqual(off.transport.sent.map(c => c.args), [{ path: 'a.txt', content: 'x' }, { path: 'a.txt', oldText: 'x', newText: 'y' }]);
+
+  const on = setup({ mode: 'fullAuto', checkLines: true });
+  await on.router.handleReply({ conversation: 'c', text: call('w1', 'write_file', write) });
+  assert.deepEqual(on.transport.sent[0].args, write);
+
+  const unset = setup({ mode: 'fullAuto' });
+  await unset.router.handleReply({ conversation: 'c', text: call('w1', 'write_file', write) });
+  assert.deepEqual(unset.transport.sent[0].args, write);
 });

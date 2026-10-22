@@ -2,7 +2,7 @@
 // The logic lives in lib/session.js; this file only adapts chrome.* APIs to it.
 import { createSession } from './lib/session.js';
 import { createLedger } from './lib/ledger.js';
-import { loadMode } from './lib/policy.js';
+import { loadMode, loadCheckLines } from './lib/policy.js';
 import { createNativeTransport } from './transport/native.js';
 
 const getText = async path => (await fetch(chrome.runtime.getURL(path))).text();
@@ -57,6 +57,7 @@ const ready = (async () => {
     transport,
     ledger: createLedger(chrome.storage.session),
     getMode: () => loadMode(chrome.storage.local),
+    getCheckLines: () => loadCheckLines(chrome.storage.local),
     bootstrap: await getText('generated/bootstrap.md'),
     findCopilotTab,
     injectInto: (tabId, text) => chrome.tabs.sendMessage(tabId, { type: 'inject', text })

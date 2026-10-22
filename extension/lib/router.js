@@ -9,7 +9,15 @@ const denied = call => ({
 
 export const DEFAULT_MAX_AUTO_TURNS = 25;
 
-export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTurns = DEFAULT_MAX_AUTO_TURNS }) {
+// Without expectLines the agent skips its line-count check.
+function withoutExpectLines(call) {
+  if (!call.args || !('expectLines' in call.args)) return call;
+  const { expectLines, ...args } = call.args;
+  return { ...call, args };
+}
+
+export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLines = async () => true,
+  maxAutoTurns = DEFAULT_MAX_AUTO_TURNS }) {
   const tierOf = new Map(tools.map(t => [t.name, t.tier]));
   let autoTurns = 0;  // replies answered automatically since the user last typed
   let stopCurrent = () => {};  // set while a reply is being handled
@@ -54,13 +62,15 @@ export function createRouter({ tools, transport, ui, ledger, getMode, maxAutoTur
     stopped = new Promise(resolve => { stopCurrent = () => resolve(STOPPED); });
     const stoppedResult = { message: null, done: false, stopped: true };
     const mode = await getMode();
+    const checkLines = await getCheckLines();
     const state = { done: false };
     const results = [];
     const report = (call, result) => {
       results.push(result);
       ui.activity?.(call, result);
     };
-    for (const call of calls) {
+    for (const parsed of calls) {
+      const call = checkLines ? parsed : withoutExpectLines(parsed);
       if (await ledger.has(conversation, call.id)) continue;
       // Marked before running: a call must never run twice, even if we crash part way.
       await ledger.markDone(conversation, call.id);

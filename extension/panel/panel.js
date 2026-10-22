@@ -56,6 +56,7 @@ $('grant-folder').addEventListener('click', async () => {
 
 document.querySelectorAll('input[name="mode"]').forEach(input =>
   input.addEventListener('change', async () => { await panel.setMode(input.value); render(); }));
+$('check-lines').addEventListener('change', async e => { await panel.setCheckLines(e.target.checked); render(); });
 $('transport').addEventListener('change', async e => { await panel.setTransport(e.target.value); render(); });
 $('start').addEventListener('click', () => port.postMessage({ type: 'start-session' }));
 $('stop').addEventListener('click', () => { panel.stop(); render(); });
@@ -79,6 +80,7 @@ function render() {
   $('status').textContent = view.status;
   $('status').className = `status ${STATUS_CLASS[view.status.split(/[: ]/)[0]] ?? ''}`;  // e.g. 'selector-broken: input'
   document.querySelectorAll('input[name="mode"]').forEach(input => { input.checked = input.value === view.mode; });
+  $('check-lines').checked = view.checkLines;
   $('transport').value = view.transport;
   $('file-controls').hidden = view.transport !== 'file';
 
