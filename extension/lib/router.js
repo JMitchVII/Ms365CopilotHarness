@@ -68,7 +68,7 @@ export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLi
     const results = [];
     const report = (call, result) => {
       results.push(result);
-      ui.activity?.(call, result);
+      ui.activity?.(call, result, conversation);
     };
     for (const parsed of calls) {
       const call = checkLines ? parsed : withoutExpectLines(parsed);
@@ -83,6 +83,7 @@ export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLi
         continue;
       }
       if (decision === 'ask') {
+        ui.callPhase?.(call, 'awaiting-approval', conversation);
         const approved = await orStop(ui.requestApproval(call));
         if (approved === STOPPED) return stoppedResult;
         if (!approved) {
@@ -90,6 +91,7 @@ export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLi
           continue;
         }
       }
+      ui.callPhase?.(call, 'running', conversation);
       const result = await orStop(sendToAgent(call));
       if (result === STOPPED) {
         transport.cancel(call.id);

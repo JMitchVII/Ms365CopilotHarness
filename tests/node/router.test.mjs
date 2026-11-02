@@ -221,3 +221,18 @@ test('RT-14 force re-runs a call that is already in the ledger', async () => {
   assert.equal(transport.sent.length, 2);
   assert.deepEqual(resultsIn(again.message).map(r => r.id), ['t1']);
 });
+
+test('RT-15 the panel hears each call move through awaiting-approval, running and done', async () => {
+  const events = [];
+  const ui = fakeUi({ approve: c => c.id !== 'w2' });
+  ui.callPhase = (c, phase, conversation) => events.push([c.id, phase, conversation]);
+  ui.activity = (c, r, conversation) => events.push([c.id, r.ok ? 'done' : r.error.code, conversation]);
+  const { router } = setup({ ui });
+  await router.handleReply({ conversation: 'c', text: call('r1', 'list_dir') + call('w1', 'write_file', { path: 'a', content: '' })
+    + call('w2', 'write_file', { path: 'b', content: '' }) });
+  assert.deepEqual(events, [
+    ['r1', 'running', 'c'], ['r1', 'done', 'c'],
+    ['w1', 'awaiting-approval', 'c'], ['w1', 'running', 'c'], ['w1', 'done', 'c'],
+    ['w2', 'awaiting-approval', 'c'], ['w2', 'E_DENIED', 'c'],
+  ]);
+});
