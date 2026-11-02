@@ -52,7 +52,8 @@ export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLi
     }
   }
 
-  async function handleReply({ conversation, messageId = '', text }) {
+  // `force` re-runs calls already in the ledger: the user asked for it (Retry, or a call pasted in the panel).
+  async function handleReply({ conversation, messageId = '', text, force = false }) {
     const { calls, errors } = parseReply(text, tools);
     if (calls.length + errors.length > 0 && autoTurns >= maxAutoTurns) {
       // Loop guard: nothing runs (or is ledgered) until the user says to go on.
@@ -71,7 +72,7 @@ export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLi
     };
     for (const parsed of calls) {
       const call = checkLines ? parsed : withoutExpectLines(parsed);
-      if (await ledger.has(conversation, call.id)) continue;
+      if (!force && await ledger.has(conversation, call.id)) continue;
       // Marked before running: a call must never run twice, even if we crash part way.
       await ledger.markDone(conversation, call.id);
       const decision = decide(mode, tierOf.get(call.tool));
@@ -99,7 +100,7 @@ export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLi
     for (const error of errors) {
       // Errors without a call id are keyed by reply + block so they are reported once per reply.
       const key = error.id ?? `${messageId}#block-${error.block}`;
-      if (await ledger.has(conversation, key)) continue;
+      if (!force && await ledger.has(conversation, key)) continue;
       await ledger.markDone(conversation, key);
       results.push(errorResult(error));
     }

@@ -212,3 +212,12 @@ test('RT-13 with the line-count check off, expectLines is dropped before the cal
   await unset.router.handleReply({ conversation: 'c', text: call('w1', 'write_file', write) });
   assert.deepEqual(unset.transport.sent[0].args, write);
 });
+
+test('RT-14 force re-runs a call that is already in the ledger', async () => {
+  const { router, transport } = setup();
+  const text = call('t1', 'list_dir');
+  await router.handleReply({ conversation: 'c', text });
+  const again = await router.handleReply({ conversation: 'c', text, force: true });
+  assert.equal(transport.sent.length, 2);
+  assert.deepEqual(resultsIn(again.message).map(r => r.id), ['t1']);
+});
