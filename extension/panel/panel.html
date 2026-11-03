@@ -50,6 +50,16 @@
     <ol id="log" class="log"></ol>
   </section>
 
+  <details id="manual" class="manual">
+    <summary>Manual call</summary>
+    <p class="hint">Paste a call Copilot wrote that the harness missed. It runs even if it ran before, and the result is
+      pasted into Copilot.</p>
+    <textarea id="manual-text" spellcheck="false" placeholder='{"w365":1,"id":"m1","tool":"list_dir","args":{"path":"."}}'></textarea>
+    <div class="row">
+      <button id="manual-run" type="button" class="primary">Run</button>
+    </div>
+  </details>
+
   <script type="module" src="panel.js"></script>
 </body>
 </html>

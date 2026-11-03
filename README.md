@@ -42,6 +42,10 @@ After editing `protocol/tools.json` or `prompt/bootstrap.md`, run `npm run sync`
 Open Copilot, click **Start session** in the panel (pastes the bootstrap), then ask for what you want. Calls
 that need approval appear in the panel. **Stop** abandons the current turn.
 
+Each call in the Activity log has a status light (amber waiting for approval, blue running, green ok, red error,
+grey denied) and a **Retry** button that runs it again and pastes the new result. If the harness misses a call
+completely, copy its JSON from Copilot's reply into **Manual call** at the bottom of the panel and click **Run**.
+
 ### Shared-folder transport (instead of native messaging)
 
 ```powershell

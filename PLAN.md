@@ -343,6 +343,17 @@ session wiring in `extension/lib/session.js`), MF-01..02 (manifest key → fixed
 Panel extras (2026-10-23): PO-07/RT-13/PN-11 line-count check toggle (off = the extension drops `expectLines`
 before calls reach the agent); TN-08/WR-08/PN-12 Restart agent button (native only: fails the stalled call with
 E_TRANSPORT so Copilot hears about it, then starts a fresh host).
+Recovery (2026-11-03), for calls that fail silently or that the harness misses:
+- RT-14 `force` re-runs a call that is already in the ledger (only for the user's Retry and manual calls).
+- RT-15 the router reports `awaiting-approval` and `running` phases to the panel.
+- RT-16 parse errors also reach the activity log (no tool, so they can't be retried).
+- WR-09 Retry re-runs a logged call and pastes the result. WR-10 a call pasted into the panel's Manual box (bare
+  JSON is fenced for the parser) runs forced against the last conversation and its result is pasted. WR-12 router
+  work is queued, so a Retry waits for the reply in progress.
+- PN-13 one log row per call (conversation + id), with a status light: waiting, running, ok, error or denied.
+  PN-14 Retry is offered only on finished rows that have a tool. PN-15 manual text is sent trimmed and ignored when
+  empty. PN-16 the Manual box's open state persists.
+- Retries and manual calls still go through the approval mode.
 
 Decisions made while building:
 - Pester 6.2 (newest on PSGallery) is used; the tests run unchanged on it. Root-level `BeforeEach` isn't allowed in 6.

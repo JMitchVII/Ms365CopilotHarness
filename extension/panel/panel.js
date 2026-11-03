@@ -61,6 +61,11 @@ $('transport').addEventListener('change', async e => { await panel.setTransport(
 $('start').addEventListener('click', () => port.postMessage({ type: 'start-session' }));
 $('restart-agent').addEventListener('click', () => panel.restartAgent());
 $('stop').addEventListener('click', () => { panel.stop(); render(); });
+$('manual').addEventListener('toggle', () => panel.setManualOpen($('manual').open));
+$('manual-run').addEventListener('click', () => {
+  panel.submitManual($('manual-text').value);
+  $('manual-text').value = '';
+});
 
 // --- Rendering --------------------------------------------------------------------------------------------
 
@@ -116,7 +121,14 @@ function render() {
   $('approvals').replaceChildren(...approvals);
 
   $('log').replaceChildren(...view.log.slice().reverse().map(entry =>
-    el('li', { className: entry.ok ? '' : 'fail', textContent: `${entry.id} ${entry.tool}: ${entry.summary}` })));
+    el('li', { className: entry.light === 'error' ? 'fail' : '' },
+      el('span', { className: `light ${entry.light}`, title: entry.light }),
+      el('span', { className: 'entry', textContent: `${entry.id}${entry.tool ? ` ${entry.tool}` : ''}: ${entry.summary}` }),
+      el('button', { className: 'retry', textContent: 'Retry', disabled: !entry.retryable,
+        title: entry.tool ? 'Run this call again and paste the result into Copilot' : 'Nothing to retry: the call did not parse',
+        onclick: () => panel.retry(entry.key) }))));
+
+  $('manual').open = view.manualOpen;
 }
 
 // --- Start ------------------------------------------------------------------------------------------------

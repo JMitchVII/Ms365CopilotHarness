@@ -30,5 +30,19 @@ textarea { width: 100%; min-height: 60px; }
 .tier { font-size: 11px; text-transform: uppercase; color: var(--warn); margin-left: 6px; }
 .notice { border-left: 3px solid var(--ok); padding: 6px 8px; margin-bottom: 8px; background: var(--card); }
 .log { list-style: none; padding: 0; margin: 0; max-height: 260px; overflow: auto; font-size: 12px; }
-.log li { padding: 2px 0; border-bottom: 1px solid var(--border); }
+.log li { display: flex; align-items: center; gap: 6px; padding: 2px 0; border-bottom: 1px solid var(--border); }
 .log .fail { color: var(--danger); }
+.log .entry { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.log button.retry { padding: 1px 6px; font-size: 11px; }
+.log button.retry:disabled { opacity: 0.4; cursor: default; }
+.light { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.light.waiting { background: var(--warn); }
+.light.running { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.light.ok { background: var(--ok); }
+.light.error { background: var(--danger); }
+.light.denied { background: var(--muted); }
+@keyframes pulse { 50% { opacity: 0.3; } }
+.manual { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
+.manual summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.manual .hint { color: var(--muted); font-size: 12px; margin: 6px 0; }
+.manual textarea { font-family: ui-monospace, Consolas, monospace; font-size: 12px; min-height: 80px; }
