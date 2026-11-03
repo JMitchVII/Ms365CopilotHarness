@@ -165,3 +165,18 @@ test('WR-10 a call pasted into the panel runs (even if already ledgered) and its
   await until(() => injected.length === 3);
   assert.equal(transport.sent.at(-1).id, 't2');
 });
+
+test('WR-12 a Retry clicked while a reply is still being handled waits for it to finish', async () => {
+  const { session, transport, injected } = setup();
+  const panel = createPort();
+  session.attachPanel(panel);
+  const reply = session.onReply({ tabId: 7, conversation: 'c', messageId: 'm1', text: call('w1', 'write_file', { path: 'a', content: 'x' }) });
+  const request = await until(() => panel.posted.find(m => m.type === 'approval-request'));
+  panel.fromOther({ type: 'retry', call: { id: 't1', tool: 'list_dir', args: {} }, conversation: 'c' });
+  await tick();
+  assert.equal(transport.sent.length, 0, 'the retry waits behind the pending approval');
+  panel.fromOther({ type: 'approval', requestId: request.requestId, approved: true });
+  await reply;
+  await until(() => injected.length === 2);
+  assert.deepEqual(transport.sent.map(c => c.id), ['w1', 't1']);
+});
