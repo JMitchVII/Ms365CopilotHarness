@@ -154,3 +154,32 @@ test('PN-13 a call keeps one log row whose light follows it: waiting, running, t
   panel.handle({ type: 'call-phase', call, phase: 'running', conversation: 'c' });
   assert.deepEqual(lights().map(([id, light]) => id + ':' + light), ['r1:error', 'w2:denied', 'block-0:error', 'w1:ok', 'w1:running']);
 });
+
+test('PN-14 Retry sends the logged call with its conversation, only for retryable rows', () => {
+  const { panel, sent } = setup();
+  const call = { id: 'r1', tool: 'list_dir', args: { path: 'src' } };
+  panel.handle({ type: 'activity', call, conversation: 'c', ok: false, summary: 'E_TRANSPORT: gone' });
+  panel.handle({ type: 'call-phase', call: { id: 'r2', tool: 'list_dir', args: {} }, phase: 'running', conversation: 'c' });
+  const [done, running] = panel.view().log;
+  panel.retry(done.key);
+  panel.retry(running.key);
+  assert.deepEqual(sent, [{ type: 'retry', call, conversation: 'c' }]);
+});
+
+test('PN-15 the manual call box sends pasted text and ignores empty input', () => {
+  const { panel, sent } = setup();
+  panel.submitManual('   ');
+  panel.submitManual('{"w365":1,"id":"m1","tool":"list_dir","args":{}}');
+  assert.deepEqual(sent, [{ type: 'manual', text: '{"w365":1,"id":"m1","tool":"list_dir","args":{}}' }]);
+});
+
+test('PN-16 the manual call box starts collapsed and remembers being opened', async () => {
+  const { panel, storage } = setup();
+  await panel.load();
+  assert.equal(panel.view().manualOpen, false);
+  await panel.setManualOpen(true);
+  assert.equal(storage.data.manualOpen, true);
+  const again = createPanelState({ storage, send: () => {} });
+  await again.load();
+  assert.equal(again.view().manualOpen, true);
+});

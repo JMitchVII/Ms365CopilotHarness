@@ -4,11 +4,12 @@ import { loadMode, saveMode, loadCheckLines, saveCheckLines } from '../lib/polic
 
 export const TRANSPORTS = ['native', 'file'];
 const TRANSPORT_KEY = 'transport';
+const MANUAL_OPEN_KEY = 'manualOpen';
 const LOG_LIMIT = 200;
 
 export function createPanelState({ storage, send }) {
   const state = { mode: 'tiered', checkLines: true, transport: 'native', status: 'unknown', approvals: [], questions: [], log: [],
-    confirm: null, done: null };
+    confirm: null, done: null, manualOpen: false };
 
   // One row per call (conversation + id), moved to the bottom on every update so a retried call shows as newest.
   // Rows without a tool (parse errors) can't be retried, nor can calls still waiting or running.
@@ -32,6 +33,8 @@ export function createPanelState({ storage, send }) {
       state.checkLines = await loadCheckLines(storage);
       const { [TRANSPORT_KEY]: transport } = await storage.get(TRANSPORT_KEY);
       state.transport = TRANSPORTS.includes(transport) ? transport : 'native';
+      const { [MANUAL_OPEN_KEY]: manualOpen } = await storage.get(MANUAL_OPEN_KEY);
+      state.manualOpen = manualOpen === true;
     },
     async setMode(mode) {
       await saveMode(storage, mode);
@@ -45,6 +48,10 @@ export function createPanelState({ storage, send }) {
       if (!TRANSPORTS.includes(transport)) throw new Error(`Unknown transport "${transport}"`);
       await storage.set({ [TRANSPORT_KEY]: transport });
       state.transport = transport;
+    },
+    async setManualOpen(open) {
+      await storage.set({ [MANUAL_OPEN_KEY]: !!open });
+      state.manualOpen = !!open;
     },
     handle(event) {
       switch (event.type) {
@@ -86,6 +93,16 @@ export function createPanelState({ storage, send }) {
       if (!state.confirm) return;
       send({ type: 'continue', requestId: state.confirm.requestId, go });
       state.confirm = null;
+    },
+    // Runs a logged call again; the service worker re-runs it even though it is in the ledger.
+    retry(key) {
+      const entry = state.log.find(e => e.key === key);
+      if (entry?.retryable) send({ type: 'retry', call: entry.call, conversation: entry.conversation });
+    },
+    // A call the harness missed, pasted by the user in Copilot's format.
+    submitManual(text) {
+      const body = String(text ?? '').trim();
+      if (body) send({ type: 'manual', text: body });
     },
     // For a stalled agent: the service worker fails its current call and starts a fresh host.
     restartAgent() { send({ type: 'restart-agent' }); },
