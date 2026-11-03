@@ -354,6 +354,8 @@ Recovery (2026-11-03), for calls that fail silently or that the harness misses:
   PN-14 Retry is offered only on finished rows that have a tool. PN-15 manual text is sent trimmed and ignored when
   empty. PN-16 the Manual box's open state persists.
 - Retries and manual calls still go through the approval mode.
+- Checked on the fake Copilot page (2026-11-03): lights go amber → blue → green, Retry of a write asks again
+  and pastes a second result, and a manual `list_dir` runs and is pasted. Not yet tried on real Copilot.
 
 Decisions made while building:
 - Pester 6.2 (newest on PSGallery) is used; the tests run unchanged on it. Root-level `BeforeEach` isn't allowed in 6.
