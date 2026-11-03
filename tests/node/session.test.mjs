@@ -149,3 +149,19 @@ test('WR-09 Retry from the panel runs the call again and pastes the new result',
   assert.equal(injected[1].tabId, 7);
   assert.deepEqual(findFences(injected[1].text).map(b => JSON.parse(b.body).id), ['t1']);
 });
+
+test('WR-10 a call pasted into the panel runs (even if already ledgered) and its result is pasted back', async () => {
+  const { session, transport, injected } = setup();
+  const panel = createPort();
+  session.attachPanel(panel);
+  await session.onReply({ tabId: 7, conversation: '/chat/abc', messageId: 'm1', text: call('t1', 'list_dir') });
+  panel.fromOther({ type: 'manual', text: '  {"w365":1,"id":"t1","tool":"list_dir","args":{"path":"src"}}  ' });
+  await until(() => injected.length === 2);
+  assert.deepEqual(transport.sent.map(c => c.args), [{}, { path: 'src' }]);
+  assert.equal(injected[1].tabId, 7);
+  assert.ok(panel.posted.some(m => m.type === 'activity' && m.conversation === '/chat/abc' && m.call.args.path === 'src'));
+
+  panel.fromOther({ type: 'manual', text: call('t2', 'list_dir') });  // already fenced: used as is
+  await until(() => injected.length === 3);
+  assert.equal(transport.sent.at(-1).id, 't2');
+});

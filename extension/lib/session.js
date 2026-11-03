@@ -2,6 +2,8 @@
 // approvals -> side panel and back. Kept free of chrome.* so it can be tested; background.js supplies the I/O.
 import { createRouter } from './router.js';
 
+const fenced = body => '```json\n' + body + '\n```\n';
+
 export function createSession({ tools, transport, ledger, getMode, getCheckLines, bootstrap, injectInto, findCopilotTab = async () => null,
   retryDelayMs = 1000, maxAutoTurns }) {
   const tierOf = new Map(tools.map(t => [t.name, t.tier]));
@@ -9,6 +11,7 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
   let status = 'unknown';
   let nextRequest = 0;
   let copilotTab = null;
+  let lastConversation = null;  // where calls pasted into the panel are ledgered
   const pending = new Map();  // requestId -> { event, resolve } for prompts waiting on the panel
   let queue = Promise.resolve();  // router work runs one job at a time (a Retry waits for the reply in progress)
 
@@ -67,6 +70,7 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
       case 'start-session': startSession(); break;
       case 'restart-agent': restartAgent(); break;
       case 'retry': retry(msg.call, msg.conversation); break;
+      case 'manual': manual(msg.text); break;
     }
   }
 
@@ -122,6 +126,7 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
     return enqueue(async () => {
       const out = await router.handleReply({ conversation, messageId, text });
       copilotTab = tabId;
+      lastConversation = conversation;
       if (out.message) await paste(tabId, out.message);
       return out;
     });
@@ -139,10 +144,18 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
     });
   }
 
+  // Calls the user pasted into the panel, in Copilot's format. Bare JSON is fenced so the parser sees a block.
+  function manual(text) {
+    const body = String(text ?? '').trim();
+    if (!body) return;
+    router.resetTurns();
+    return runForced(lastConversation ?? 'manual', body.includes('```') ? body : fenced(body));
+  }
+
   function retry(call, conversation) {
     if (!call?.id || !call?.tool) return;
     const { id, tool, args = {} } = call;
-    return runForced(conversation, '```json\n' + JSON.stringify({ w365: 1, id, tool, args }) + '\n```\n');
+    return runForced(conversation, fenced(JSON.stringify({ w365: 1, id, tool, args })));
   }
 
   return {
