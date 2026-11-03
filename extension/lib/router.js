@@ -104,7 +104,9 @@ export function createRouter({ tools, transport, ui, ledger, getMode, getCheckLi
       const key = error.id ?? `${messageId}#block-${error.block}`;
       if (!force && await ledger.has(conversation, key)) continue;
       await ledger.markDone(conversation, key);
-      results.push(errorResult(error));
+      const result = errorResult(error);
+      results.push(result);
+      ui.activity?.({ id: result.id, tool: null }, result, conversation);  // no tool: nothing the panel can retry
     }
     if (results.length) autoTurns++;
     return { message: results.length ? formatResults(results) : null, done: state.done };

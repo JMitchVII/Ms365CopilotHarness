@@ -236,3 +236,12 @@ test('RT-15 the panel hears each call move through awaiting-approval, running an
     ['w2', 'awaiting-approval', 'c'], ['w2', 'E_DENIED', 'c'],
   ]);
 });
+
+test('RT-16 parse errors also reach the panel activity log, marked as not retryable', async () => {
+  const activity = [];
+  const ui = fakeUi();
+  ui.activity = (c, r) => activity.push([c, r.error.code]);
+  const { router } = setup({ ui });
+  await router.handleReply({ conversation: 'c', messageId: 'm1', text: '```json\n{"w365":1,"id":"bad", oops}\n```\n' });
+  assert.deepEqual(activity, [[{ id: 'block-0', tool: null }, 'E_PARSE']]);
+});
