@@ -87,6 +87,13 @@ Log to `agent/logs/` instead (`W365_LOG`). The workspace root comes from `$env:W
 written by `install-host.ps1` (HKCU registration, no admin). Files the agent writes are UTF-8 without BOM, keeping
 the supplied line endings.
 
+## Pending: ask the user first
+
+On 2026-11-03 the panel recovery features were committed as a **draft**: status lights, Retry per call, and
+the Manual call box (RT-14..16, WR-09/10/12, PN-13..16 in `PLAN.md`). They passed on the fake Copilot page. The
+user said they would test them in another environment (real Copilot). At the start of the next session, ask how
+that went before building on these features, then update `PLAN.md` and remove this section.
+
 ## Manual setup and E2E
 
 See `README.md`: load `extension/` unpacked (the manifest `key` pins the ID to `mibjgjdclpgkohlepnkfpemcddpbcjbb`),
