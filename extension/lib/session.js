@@ -10,6 +10,13 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
   let nextRequest = 0;
   let copilotTab = null;
   const pending = new Map();  // requestId -> { event, resolve } for prompts waiting on the panel
+  let queue = Promise.resolve();  // router work runs one job at a time (a Retry waits for the reply in progress)
+
+  function enqueue(job) {
+    const run = queue.then(job);
+    queue = run.catch(() => {});
+    return run;
+  }
 
   function emit(event) {
     try { panel?.postMessage(event); } catch { panel = null; }  // panel closed: events are replayed on reconnect
@@ -43,8 +50,9 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
     confirmContinue: turns => askPanel({ type: 'confirm-continue', turns }),
     taskDone: summary => emit({ type: 'task-done', summary }),
     status: setStatus,
-    activity: (call, result) => emit({
-      type: 'activity', call, ok: result.ok,
+    callPhase: (call, phase, conversation) => emit({ type: 'call-phase', call, phase, conversation }),
+    activity: (call, result, conversation) => emit({
+      type: 'activity', call, conversation, ok: result.ok,
       summary: result.ok ? 'ok' : `${result.error?.code}: ${result.error?.message ?? ''}`.slice(0, 200),
     }),
   };
@@ -58,6 +66,7 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
       case 'stop': stop(); break;
       case 'start-session': startSession(); break;
       case 'restart-agent': restartAgent(); break;
+      case 'retry': retry(msg.call, msg.conversation); break;
     }
   }
 
@@ -109,11 +118,31 @@ export function createSession({ tools, transport, ledger, getMode, getCheckLines
     for (const { event } of pending.values()) emit(event);
   }
 
-  async function onReply({ tabId, conversation, messageId, text }) {
-    const out = await router.handleReply({ conversation, messageId, text });
-    copilotTab = tabId;
-    if (out.message) await paste(tabId, out.message);
-    return out;
+  function onReply({ tabId, conversation, messageId, text }) {
+    return enqueue(async () => {
+      const out = await router.handleReply({ conversation, messageId, text });
+      copilotTab = tabId;
+      if (out.message) await paste(tabId, out.message);
+      return out;
+    });
+  }
+
+  // Runs calls the user asked for from the panel, even if they already ran, and pastes the results.
+  function runForced(conversation, text) {
+    return enqueue(async () => {
+      const out = await router.handleReply({ conversation, text, force: true });
+      if (!out.message) return out;
+      copilotTab ??= await findCopilotTab();
+      if (copilotTab == null) setStatus('no-copilot-tab');
+      else await paste(copilotTab, out.message);
+      return out;
+    });
+  }
+
+  function retry(call, conversation) {
+    if (!call?.id || !call?.tool) return;
+    const { id, tool, args = {} } = call;
+    return runForced(conversation, '```json\n' + JSON.stringify({ w365: 1, id, tool, args }) + '\n```\n');
   }
 
   return {

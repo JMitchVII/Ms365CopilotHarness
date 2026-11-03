@@ -133,3 +133,19 @@ test('WR-08 Restart agent from the panel restarts the transport', async () => {
   await until(() => restarts);
   assert.equal(restarts, 1);
 });
+
+test('WR-09 Retry from the panel runs the call again and pastes the new result', async () => {
+  const { session, transport, injected } = setup();
+  const panel = createPort();
+  session.attachPanel(panel);
+  await session.onReply({ tabId: 7, conversation: '/chat/abc', messageId: 'm1', text: call('t1', 'list_dir') });
+  const first = panel.posted.find(m => m.type === 'activity');
+  assert.equal(first.conversation, '/chat/abc');
+  assert.ok(panel.posted.some(m => m.type === 'call-phase' && m.call.id === 't1' && m.phase === 'running' && m.conversation === '/chat/abc'));
+
+  panel.fromOther({ type: 'retry', call: first.call, conversation: first.conversation });
+  await until(() => injected.length === 2);
+  assert.deepEqual(transport.sent.map(c => c.id), ['t1', 't1']);
+  assert.equal(injected[1].tabId, 7);
+  assert.deepEqual(findFences(injected[1].text).map(b => JSON.parse(b.body).id), ['t1']);
+});
