@@ -132,3 +132,25 @@ test('PN-12 Restart agent sends the restart message', () => {
   panel.restartAgent();
   assert.deepEqual(sent, [{ type: 'restart-agent' }]);
 });
+
+test('PN-13 a call keeps one log row whose light follows it: waiting, running, then ok / error / denied', () => {
+  const { panel } = setup();
+  const lights = () => panel.view().log.map(e => [e.id, e.light, e.retryable]);
+  const call = { id: 'w1', tool: 'write_file', args: { path: 'a', content: '' } };
+  panel.handle({ type: 'call-phase', call, phase: 'awaiting-approval', conversation: 'c' });
+  assert.deepEqual(lights(), [['w1', 'waiting', false]]);
+  panel.handle({ type: 'call-phase', call, phase: 'running', conversation: 'c' });
+  assert.deepEqual(lights(), [['w1', 'running', false]]);
+  panel.handle({ type: 'activity', call, conversation: 'c', ok: true, summary: 'ok' });
+  assert.deepEqual(lights(), [['w1', 'ok', true]]);
+
+  panel.handle({ type: 'activity', call: { id: 'r1', tool: 'list_dir', args: {} }, conversation: 'c', ok: false, summary: 'E_NOT_FOUND: x' });
+  panel.handle({ type: 'activity', call: { ...call, id: 'w2' }, conversation: 'c', ok: false, summary: 'E_DENIED: no' });
+  panel.handle({ type: 'activity', call: { id: 'block-0', tool: null }, conversation: 'c', ok: false, summary: 'E_PARSE: bad' });
+  panel.handle({ type: 'activity', call, conversation: 'other', ok: true, summary: 'ok' });
+  assert.deepEqual(lights(), [['w1', 'ok', true], ['r1', 'error', true], ['w2', 'denied', true], ['block-0', 'error', false], ['w1', 'ok', true]]);
+
+  // Retrying w1 in "c" moves its row to the bottom (newest) instead of adding another.
+  panel.handle({ type: 'call-phase', call, phase: 'running', conversation: 'c' });
+  assert.deepEqual(lights().map(([id, light]) => id + ':' + light), ['r1:error', 'w2:denied', 'block-0:error', 'w1:ok', 'w1:running']);
+});

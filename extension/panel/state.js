@@ -10,6 +10,17 @@ export function createPanelState({ storage, send }) {
   const state = { mode: 'tiered', checkLines: true, transport: 'native', status: 'unknown', approvals: [], questions: [], log: [],
     confirm: null, done: null };
 
+  // One row per call (conversation + id), moved to the bottom on every update so a retried call shows as newest.
+  // Rows without a tool (parse errors) can't be retried, nor can calls still waiting or running.
+  function logCall({ call, conversation }, fields) {
+    const key = `${conversation ?? ''}\n${call.id}`;
+    const at = state.log.findIndex(e => e.key === key);
+    if (at >= 0) state.log.splice(at, 1);
+    const finished = fields.light !== 'waiting' && fields.light !== 'running';
+    state.log.push({ key, id: call.id, tool: call.tool, call, conversation, ...fields, retryable: finished && !!call.tool });
+    if (state.log.length > LOG_LIMIT) state.log.splice(0, state.log.length - LOG_LIMIT);
+  }
+
   function answerApproval(requestId, approved) {
     state.approvals = state.approvals.filter(a => a.requestId !== requestId);
     send({ type: 'approval', requestId, approved });
@@ -52,9 +63,12 @@ export function createPanelState({ storage, send }) {
         case 'task-done':
           state.done = event.summary;
           break;
+        case 'call-phase':
+          logCall(event, { light: event.phase === 'running' ? 'running' : 'waiting', ok: null, summary: event.phase });
+          break;
         case 'activity':
-          state.log.push({ id: event.call.id, tool: event.call.tool, ok: event.ok, summary: event.summary });
-          if (state.log.length > LOG_LIMIT) state.log.splice(0, state.log.length - LOG_LIMIT);
+          logCall(event, { light: event.ok ? 'ok' : /^E_DENIED\b/.test(event.summary ?? '') ? 'denied' : 'error',
+            ok: event.ok, summary: event.summary });
           break;
       }
     },
